@@ -69,7 +69,7 @@ def build_qss(p: dict[str, str]) -> str:
 
     QPushButton#IconBtn {{
         background: transparent; border: 1px solid transparent;
-        border-radius: 10px; padding: 6px; min-width: 20px; min-height: 20px;
+        border-radius: 12px; padding: 8px; min-width: 30px; min-height: 30px;
     }}
     QPushButton#IconBtn:hover {{
         background: {p['chrome_bg']}; border-color: {p['border']};
@@ -101,11 +101,18 @@ def build_qss(p: dict[str, str]) -> str:
     QComboBox {{
         background: {p['panel_surface']}; border: 1px solid {p['border']};
         border-radius: 10px; padding: 6px 12px; min-height: 20px;
+        combobox-popup: 0;
     }}
     QComboBox:hover {{ border-color: {p['accent']}; }}
+    QComboBox::drop-down {{
+        subcontrol-origin: padding; subcontrol-position: center right;
+        width: 22px; border: none; background: transparent;
+        margin-right: 4px;
+    }}
     QComboBox QAbstractItemView {{
         background: {p['panel_surface']}; border: 1px solid {p['border']};
-        selection-background-color: {p['accent']}; outline: none;
+        border-radius: 8px; selection-background-color: {p['accent']};
+        outline: none; padding: 4px;
     }}
 
     #Tile {{
@@ -155,6 +162,18 @@ def build_qss(p: dict[str, str]) -> str:
         border: 1px solid {p['accent']}; border-radius: 12px;
     }}
     #RetroYear {{ color: {p['accent']}; font-size: 40px; font-weight: 900; }}
+    #BannerNum {{ color: {p['text']}; font-size: 34px; font-weight: 900; }}
+    #DeltaUp {{ color: #4FB15A; font-weight: 700; font-size: 12px; }}
+    #DeltaDown {{ color: {p['accent']}; font-weight: 700; font-size: 12px; }}
+    #ExploreBadge {{
+        background: {p['accent']}; color: white; border-radius: 6px;
+        padding: 1px 6px; font-size: 9px; font-weight: 700;
+    }}
+    #ExplorePct {{ color: {p['text']}; font-weight: 800; }}
+    #FilterPanel {{
+        background: {p['panel_surface']}; border: 1px solid {p['border']};
+        border-top: 3px solid {p['accent']}; border-radius: 12px;
+    }}
     #RetroHero {{ font-size: 30px; font-weight: 800; color: {p['text']}; }}
     #KickerText {{ color: {p['accent']}; font-weight: 800; }}
     QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}

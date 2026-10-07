@@ -1,5 +1,9 @@
 # ES-DB — Especificação de Retrospectiva Anual
 
+> **Atualização 1:** calendário e distribuição por hora removidos; banner de
+> destaques com comparação anual; grade "Explore os jogos"; identidade editorial.
+> Ver [ATUALIZACAO1.md](ATUALIZACAO1.md).
+
 ## 1. Propósito e referência
 
 A retrospectiva é o relatório anual pessoal do ES-DB. Seu propósito é contar uma história verificável da atividade de jogo com métricas, destaques e visualizações que permitam explorar o ano sem transformar dados incompletos em conclusões exageradas.

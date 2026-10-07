@@ -1,5 +1,8 @@
 # ES-DB — Aba Atividade (Feed Pessoal)
 
+> **Atualização 1:** o feed passou a incluir os desbloqueios de conquistas
+> cronologicamente. Ver [ATUALIZACAO1.md](ATUALIZACAO1.md).
+
 > Visual inspirado no **feed de atividade da Steam**; conteúdo inspirado no
 > plugin **PlayerActivities** do Playnite — porém **apenas do usuário atual**,
 > sem recursos sociais (amigos, curtir, comentar, publicar status).

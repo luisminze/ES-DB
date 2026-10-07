@@ -1,5 +1,8 @@
 # ES-DB — Aba Conquistas (RPCS3 · Xenia · shadPS4)
 
+> **Atualização 1:** pontuação/níveis (Sony) e Gamerscore (Xbox), anéis de
+> resumo e conquistas no feed de Atividade — ver [ATUALIZACAO1.md](ATUALIZACAO1.md).
+
 > Inspirado no plugin **PlayniteAchievements**, restrito a três emuladores:
 > **RPCS3**, **Xenia** e **shadPS4**. Local e somente leitura dos dados do
 > emulador; sem rede.

@@ -354,7 +354,8 @@ class RetrospectivePage(QWidget):
             cov.setAlignment(Qt.AlignHCenter)
             self._lay.addWidget(cov)
 
-        self._lay.addWidget(self._tiles(r))
+        prev = self._prev_metrics(self._year)
+        self._lay.addWidget(self._stats_banner(r, prev))
 
         radar = self._genre_card(r)
         if radar is not None:
@@ -363,10 +364,6 @@ class RetrospectivePage(QWidget):
         breakdown, year_total = self._monthly_breakdown(self._year)
         self._lay.addWidget(MonthlyStackedChart(breakdown, year_total,
                                                 lib.games_by_id))
-        self._lay.addWidget(self._kicker("Calendário de atividade"))
-        self._lay.addWidget(self._calendar(self._year, r.calendar_days))
-        self._lay.addWidget(self._kicker("Distribuição por hora"))
-        self._lay.addWidget(self._hourly(r.hourly_activity))
 
         cols = QHBoxLayout()
         left = QVBoxLayout()
@@ -379,6 +376,10 @@ class RetrospectivePage(QWidget):
         lw.setLayout(left); rw.setLayout(right)
         cols.addWidget(lw, 1); cols.addWidget(rw, 1)
         self._lay.addLayout(cols)
+
+        self._lay.addWidget(self._kicker(
+            f"Explore os jogos que {self._player_name()} jogou neste ano"))
+        self._lay.addWidget(self._explore_grid(r))
 
         streak = self._streak_card(r)
         if streak is not None:
@@ -493,25 +494,108 @@ class RetrospectivePage(QWidget):
         row.addStretch()
         return host
 
-    def _tiles(self, r: YearReview) -> QWidget:
+    def _prev_metrics(self, year: int):
+        lib = self._app.library
+        prev = compute_year_review(lib.sessions, lib.games_by_id, year - 1,
+                                   self._app.tz)
+        return prev.metrics if prev.has_data else None
+
+    def _delta_widget(self, cur: int, prev: int | None, year: int) -> QLabel:
+        if prev is None:
+            lab = QLabel("sem base comparável")
+            lab.setObjectName("CardMeta")
+            return lab
+        diff = cur - prev
+        if diff > 0:
+            lab = QLabel(f"▲ {diff} a mais que em {year - 1}")
+            lab.setObjectName("DeltaUp")
+        elif diff < 0:
+            lab = QLabel(f"▼ {abs(diff)} a menos que em {year - 1}")
+            lab.setObjectName("DeltaDown")
+        else:
+            lab = QLabel(f"igual a {year - 1}")
+            lab.setObjectName("CardMeta")
+        return lab
+
+    def _stat_group(self, value: str, label: str, delta: QLabel | None,
+                    sub: str) -> QWidget:
+        host = QWidget()
+        v = QVBoxLayout(host)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(1)
+        num = QLabel(value)
+        num.setObjectName("BannerNum")
+        v.addWidget(num)
+        lab = QLabel(label)
+        lab.setObjectName("CardTitle")
+        v.addWidget(lab)
+        if delta is not None:
+            v.addWidget(delta)
+        s = QLabel(sub)
+        s.setObjectName("CardMeta")
+        s.setWordWrap(True)
+        v.addWidget(s)
+        v.addStretch()
+        return host
+
+    def _stats_banner(self, r: YearReview, prev) -> QWidget:
+        m = r.metrics
+        card = QFrame()
+        card.setObjectName("RetroCard")
+        row = QHBoxLayout(card)
+        row.setContentsMargins(20, 16, 20, 16)
+        row.setSpacing(26)
+        row.addWidget(self._stat_group(
+            str(m.games_played), "Jogos jogados",
+            self._delta_widget(m.games_played, prev.games_played if prev else None, r.year),
+            f"Novos no ano: {r.new_games} · Plataformas: {m.platforms_played}"), 1)
+        row.addWidget(self._stat_group(
+            str(m.session_count), "Sessões",
+            self._delta_widget(m.session_count, prev.session_count if prev else None, r.year),
+            f"{format_duration(m.total_seconds)} · maior sequência de {m.longest_streak} dias"), 1)
+        row.addWidget(self._stat_group(
+            f"{r.day_fraction * 100:.0f}%", "Do tempo de dia",
+            None,
+            f"{r.night_fraction * 100:.0f}% de noite · média de "
+            f"{format_duration(m.avg_session_seconds or 0)}/sessão"), 1)
+        return card
+
+    def _explore_grid(self, r: YearReview) -> QWidget:
+        lib = self._app.library
         host = QFrame()
         host.setObjectName("RetroCard")
-        wrap = QVBoxLayout(host)
-        wrap.setContentsMargins(14, 12, 14, 14)
-        tiles = QGridLayout()
-        tiles.setSpacing(12)
-        m = r.metrics
-        data = [
-            (str(m.games_played), "Jogos jogados", True),
-            (str(m.session_count), "Sessões", False),
-            (f"{r.day_fraction*100:.0f}% dia", "Dia / noite", False),
-            (str(r.new_games), "Novos no ano", False),
-            (f"{m.longest_streak} dias", "Maior sequência", False),
-            (str(m.platforms_played), "Plataformas", False),
-        ]
-        for i, (v, lab, acc) in enumerate(data):
-            tiles.addWidget(stat_tile(v, lab, acc), i // 3, i % 3)
-        wrap.addLayout(tiles)
+        outer = QVBoxLayout(host)
+        outer.setContentsMargins(16, 14, 16, 16)
+        grid = QGridLayout()
+        grid.setSpacing(14)
+        grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        games = r.metrics.top_games[:100]
+        total = r.metrics.total_seconds or 1.0
+        cols = 7
+        for i, ranked in enumerate(games):
+            g = lib.games_by_id.get(ranked.key)
+            pct = ranked.seconds / total * 100
+            pct_txt = "< 1%" if 0 < pct < 1 else f"{pct:.0f}%"
+            cell = QWidget()
+            cv = QVBoxLayout(cell)
+            cv.setContentsMargins(0, 0, 0, 0)
+            cv.setSpacing(3)
+            cv.addWidget(cover_label(g.cover_path if g else None,
+                                     ranked.label, 92, 138), 0, Qt.AlignHCenter)
+            first = g.first_played_at.astimezone(self._app.tz).year == r.year if (
+                g and g.first_played_at) else False
+            if first:
+                badge = QLabel("1ª VEZ")
+                badge.setObjectName("ExploreBadge")
+                badge.setAlignment(Qt.AlignHCenter)
+                cv.addWidget(badge, 0, Qt.AlignHCenter)
+            info = QLabel(f"{pct_txt} · {ranked.sessions}×")
+            info.setObjectName("ExplorePct")
+            info.setAlignment(Qt.AlignHCenter)
+            cv.addWidget(info)
+            cell.setFixedWidth(104)
+            grid.addWidget(cell, i // cols, i % cols)
+        outer.addLayout(grid)
         return host
 
     def _monthly_breakdown(self, year: int) -> tuple[dict[int, dict[int, float]], float]:
