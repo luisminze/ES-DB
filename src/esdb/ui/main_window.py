@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (QButtonGroup, QComboBox, QHBoxLayout, QLabel,
                                QLineEdit, QMainWindow, QPushButton,
                                QStackedWidget, QVBoxLayout, QWidget)
@@ -26,6 +26,7 @@ from .pages.statistics import StatisticsPage
 from .pages.summary import SummaryPage
 from .theme import build_qss, palette
 from .widgets import nav_icon
+from ..resources import icon_file
 
 PILLS = [
     ("library", "Biblioteca"),
@@ -61,6 +62,9 @@ class MainWindow(QMainWindow):
         self._current = "summary"
 
         self.setWindowTitle("ES-DB")
+        _icon = icon_file()
+        if _icon:
+            self.setWindowIcon(QIcon(_icon))
         self.resize(1280, 820)
         self._build_ui()
         self._apply_theme()
@@ -94,9 +98,17 @@ class MainWindow(QMainWindow):
         bar.setObjectName("TopBar")
         bar.setFixedHeight(58)
         lay = QHBoxLayout(bar)
-        lay.setContentsMargins(16, 10, 16, 10)
-        lay.setSpacing(10)
-        logo = QLabel("ES<span id='x'>-</span>DB")
+        lay.setContentsMargins(16, 8, 16, 8)
+        lay.setSpacing(8)
+        _icon = icon_file()
+        if _icon:
+            mark = QLabel()
+            pix = QPixmap(_icon)
+            if not pix.isNull():
+                mark.setPixmap(pix.scaledToHeight(34, Qt.SmoothTransformation))
+                mark.setToolTip("ES-DB")
+                lay.addWidget(mark)
+        logo = QLabel()
         logo.setObjectName("Logo")
         logo.setTextFormat(Qt.RichText)
         logo.setText("ES<font color='#EB5E54'>-</font>DB")
