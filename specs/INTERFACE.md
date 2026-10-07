@@ -1,5 +1,9 @@
 # ES-DB — Interface (Shell da Aplicação)
 
+> **Atualização 1:** Biblioteca como pílula padrão; Resumo agregado; ícones da
+> barra superior à direita e maiores; correção dos seletores; filtro em popup.
+> Ver [ATUALIZACAO1.md](ATUALIZACAO1.md).
+
 > Esta especificação define a **estrutura geral da interface** após a
 > reformulação baseada no **Playnite (modo Desktop)** com o tema **Helium**.
 > Ela substitui as partes de *layout de shell* (barra, navegação, janela) da

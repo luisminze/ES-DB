@@ -86,7 +86,9 @@ class ActivityPage(QWidget):
         lay = QHBoxLayout(card)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(12)
-        if ev["big"] and ev.get("game"):
+        if ev.get("cover"):
+            lay.addWidget(cover_label(ev["cover"], ev.get("title", ""), 48, 48))
+        elif ev["big"] and ev.get("game"):
             lay.addWidget(cover_label(ev["game"].cover_path,
                                       ev["game"].display_title, 60, 90))
         text = QVBoxLayout()
@@ -141,6 +143,21 @@ class ActivityPage(QWidget):
             events.append({"when": agg["when"], "big": False, "game": None,
                            "title": f"Você jogou {format_duration(agg['secs'])} "
                                     f"em {len(agg['games'])} jogo(s)."})
+
+        # Conquistas desbloqueadas entram cronologicamente (ES-DB-Update1).
+        for g in self._app.conquistas_games():
+            for a in g.achievements:
+                if not (a.unlocked and a.unlocked_at):
+                    continue
+                when = a.unlocked_at
+                if when.tzinfo is None:
+                    when = when.replace(tzinfo=self._app.tz)
+                events.append({
+                    "when": when, "big": False, "game": None,
+                    "cover": a.icon_path or g.icon_path,
+                    "title": f"🏆 Você desbloqueou \"{a.name}\" em {g.title} "
+                             f"({a.grade.label})."})
+
         events.sort(key=lambda e: e["when"], reverse=True)
         return events
 

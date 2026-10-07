@@ -25,6 +25,12 @@ biblioteca, estatísticas, atividade, conquistas e retrospectiva.
 | [ATIVIDADE.md](ATIVIDADE.md) | Aba Atividade: feed pessoal + lista de sessões. |
 | [CONQUISTAS.md](CONQUISTAS.md) | Aba Conquistas: RPCS3, Xenia e shadPS4. |
 
+## Atualizações
+
+| Documento | Conteúdo |
+| --- | --- |
+| [ATUALIZACAO1.md](ATUALIZACAO1.md) | Primeira rodada de atualização: Retrospectiva reformulada, Resumo agregado, Biblioteca como padrão, conquistas no feed, pontuação/níveis (Sony) e Gamerscore (Xbox), anéis da Conquistas, barra superior e filtros renovados. |
+
 ## Áreas específicas
 
 | Documento | Conteúdo |

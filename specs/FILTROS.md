@@ -1,5 +1,8 @@
 # ES-DB — Painel de Filtros da Biblioteca
 
+> **Atualização 1:** o painel virou um menu suspenso (popup) renovado em colunas,
+> ancorado ao ícone de Filtros. Ver [ATUALIZACAO1.md](ATUALIZACAO1.md).
+
 > Inspirado no painel de filtros do **Playnite (modo Desktop)**, reduzido ao
 > escopo do projeto. Acionado pelo botão **Filtros** da barra superior
 > ([INTERFACE.md](INTERFACE.md) §2).

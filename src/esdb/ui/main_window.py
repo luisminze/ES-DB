@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QButtonGroup, QComboBox, QHBoxLayout, QLabel,
                                QLineEdit, QMainWindow, QPushButton,
@@ -14,7 +14,7 @@ from ..config import AppConfig, save_config, stats_home
 from ..conquistas.scanner import ConquistasService
 from ..data.library import Library
 from ..domain.periods import PRESETS, build_period
-from .filter_dialog import FilterDialog
+from .filter_dialog import FilterPanel
 from .pages.achievements import AchievementsPage
 from .pages.activity import ActivityPage
 from .pages.game_detail import GameDetailDialog
@@ -28,13 +28,13 @@ from .theme import build_qss, palette
 from .widgets import nav_icon
 
 PILLS = [
-    ("summary", "Resumo"),
+    ("library", "Biblioteca"),
     ("statistics", "Estatísticas"),
     ("activity", "Atividade"),
     ("achievements", "Conquistas"),
     ("retrospective", "Retrospectiva"),
 ]
-GHOSTS = [("library", "Explorar biblioteca")]
+GHOSTS = [("summary", "Resumo")]
 PERIOD_PAGES = {"summary", "statistics", "library"}
 TITLES = {
     "summary": "Resumo", "statistics": "Estatísticas", "activity": "Atividade",
@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._apply_theme()
         self.reload_library()
-        self.navigate("summary")
+        self.navigate("library")
 
     # --------------------------------------------------------------- UI
     def _build_ui(self) -> None:
@@ -108,33 +108,27 @@ class MainWindow(QMainWindow):
         self._search.textChanged.connect(self._on_search)
         self._search.setMaximumWidth(360)
         lay.addWidget(self._search)
-
-        accent = palette(self.config.theme)["accent"]
-        filters_btn = QPushButton()
-        filters_btn.setObjectName("IconBtn")
-        filters_btn.setIcon(nav_icon("funnel", accent))
-        filters_btn.setToolTip("Filtros")
-        filters_btn.setAccessibleName("Filtros")
-        filters_btn.clicked.connect(self.open_filters)
-        lay.addWidget(filters_btn)
-
         lay.addStretch(1)
 
-        refresh = QPushButton()
-        refresh.setObjectName("IconBtn")
-        refresh.setIcon(nav_icon("refresh"))
-        refresh.setToolTip("Atualizar (Ctrl+R)")
-        refresh.setAccessibleName("Atualizar")
-        refresh.clicked.connect(self.refresh_data)
-        lay.addWidget(refresh)
-
-        gear = QPushButton()
-        gear.setObjectName("IconBtn")
-        gear.setIcon(nav_icon("gear"))
-        gear.setToolTip("Configurações")
-        gear.setAccessibleName("Configurações")
-        gear.clicked.connect(lambda: self.navigate("settings"))
-        lay.addWidget(gear)
+        accent = palette(self.config.theme)["accent"]
+        isize = 26
+        for icon, tip, name, handler in (
+            ("funnel", "Filtros", "Filtros", self.open_filters),
+            ("refresh", "Atualizar (Ctrl+R)", "Atualizar", self.refresh_data),
+            ("gear", "Configurações", "Configurações",
+             lambda: self.navigate("settings")),
+        ):
+            btn = QPushButton()
+            btn.setObjectName("IconBtn")
+            btn.setIcon(nav_icon(icon, accent if icon == "funnel" else "#E8EAED",
+                                 isize))
+            btn.setIconSize(QSize(isize, isize))
+            btn.setToolTip(tip)
+            btn.setAccessibleName(name)
+            btn.clicked.connect(handler)
+            lay.addWidget(btn)
+            if icon == "funnel":
+                self._filters_btn = btn
         return bar
 
     def _build_nav(self) -> QWidget:
@@ -247,7 +241,7 @@ class MainWindow(QMainWindow):
                         "options": {}}
         self._conquistas_cache = None
         self.reload_library()
-        self.navigate("summary")
+        self.navigate("library")
 
     def navigate(self, key: str) -> None:
         self._current = key
@@ -267,7 +261,7 @@ class MainWindow(QMainWindow):
     def open_filters(self) -> None:
         if self.library is None:
             return
-        FilterDialog(self).exec()
+        FilterPanel(self).open_under(self._filters_btn)
 
     def open_game(self, game) -> None:
         if self.library is not None:
