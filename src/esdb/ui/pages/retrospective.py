@@ -23,8 +23,8 @@ from ...domain.calculations import (Metrics, format_duration, split_by_day,
 from ...domain.year_review import (YearReview, available_years,
                                    compute_year_review)
 from ..theme import palette
-from ..widgets import (cover_label, load_cover, ranking_list, section_title,
-                       stat_tile)
+from ..widgets import (cover_fit_label, cover_label, load_cover, ranking_list,
+                       section_title, stat_tile)
 from .base import clear_layout, empty_label, scroll_container
 
 _MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set",
@@ -332,7 +332,7 @@ class ExploreGrid(QWidget):
         cv = QVBoxLayout(cell)
         cv.setContentsMargins(0, 0, 0, 0)
         cv.setSpacing(3)
-        cv.addWidget(cover_label(item["cover"], item["title"], 92, 138),
+        cv.addWidget(cover_fit_label(item["cover"], item["title"], 92),
                      0, Qt.AlignHCenter)
         if item["first"]:
             badge = QLabel("1ª VEZ")
@@ -541,8 +541,8 @@ class RetrospectivePage(QWidget):
             rk.setObjectName("KickerText" if center else "PodiumRank")
             rk.setAlignment(Qt.AlignHCenter)
             v.addWidget(rk)
-            v.addWidget(cover_label(g.cover_path if g else None, ranked.label,
-                                    w, h), 0, Qt.AlignHCenter)
+            v.addWidget(cover_fit_label(g.cover_path if g else None,
+                                        ranked.label, w), 0, Qt.AlignHCenter)
             name = QLabel(ranked.label)
             name.setObjectName("CardTitle" if center else "CardMeta")
             name.setWordWrap(True)
@@ -745,7 +745,7 @@ class RetrospectivePage(QWidget):
             covers.setSpacing(8)
             covers.addStretch()
             for g in games[:12]:
-                covers.addWidget(cover_label(g.cover_path, g.display_title, 56, 84))
+                covers.addWidget(cover_fit_label(g.cover_path, g.display_title, 56))
             covers.addStretch()
             holder = QWidget()
             holder.setLayout(covers)
