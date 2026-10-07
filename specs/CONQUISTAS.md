@@ -2,6 +2,8 @@
 
 > **Atualização 1:** pontuação/níveis (Sony) e Gamerscore (Xbox), anéis de
 > resumo e conquistas no feed de Atividade — ver [ATUALIZACAO1.md](ATUALIZACAO1.md).
+> **Atualização 2:** anéis no rodapé e pontuação compacta no canto superior
+> direito — ver [ATUALIZACAO2.md](ATUALIZACAO2.md).
 
 > Inspirado no plugin **PlayniteAchievements**, restrito a três emuladores:
 > **RPCS3**, **Xenia** e **shadPS4**. Local e somente leitura dos dados do
