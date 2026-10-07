@@ -78,12 +78,12 @@ class ActivityPage(QWidget):
             self._lay.addWidget(empty_label("Sem atividade registrada ainda."))
             self._lay.addStretch()
             return
-        current_month = None
+        current_day = None
         for g in groups:
-            ym = (g["when"].year, g["when"].month)
-            if ym != current_month:
-                current_month = ym
-                div = QLabel(f"{_MONTHS[ym[1]]} DE {ym[0]}")
+            d = g["date"]
+            if d != current_day:
+                current_day = d
+                div = QLabel(f"{d.day:02d} DE {_MONTHS[d.month]} DE {d.year}")
                 div.setObjectName("Divider")
                 self._lay.addWidget(div)
             self._lay.addWidget(self._group_widget(g))
@@ -216,7 +216,8 @@ class ActivityPage(QWidget):
                 g["screenshots"] += 1
                 touch(g, mt)
 
-        return sorted(groups.values(), key=lambda g: g["when"], reverse=True)
+        return sorted(groups.values(), key=lambda g: (g["date"], g["when"]),
+                      reverse=True)
 
     # --------------------------------------------------------- sessions
     def _build_sessions(self) -> None:
