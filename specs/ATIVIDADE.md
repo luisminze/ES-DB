@@ -2,6 +2,8 @@
 
 > **Atualização 1:** o feed passou a incluir os desbloqueios de conquistas
 > cronologicamente. Ver [ATUALIZACAO1.md](ATUALIZACAO1.md).
+> **Atualização 2:** o feed passou a **agrupar por jogo/dia** (horas, conquistas e
+> screenshots num só card). Ver [ATUALIZACAO2.md](ATUALIZACAO2.md).
 
 > Visual inspirado no **feed de atividade da Steam**; conteúdo inspirado no
 > plugin **PlayerActivities** do Playnite — porém **apenas do usuário atual**,

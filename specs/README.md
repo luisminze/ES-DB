@@ -30,6 +30,7 @@ biblioteca, estatísticas, atividade, conquistas e retrospectiva.
 | Documento | Conteúdo |
 | --- | --- |
 | [ATUALIZACAO1.md](ATUALIZACAO1.md) | Primeira rodada de atualização: Retrospectiva reformulada, Resumo agregado, Biblioteca como padrão, conquistas no feed, pontuação/níveis (Sony) e Gamerscore (Xbox), anéis da Conquistas, barra superior e filtros renovados. |
+| [ATUALIZACAO2.md](ATUALIZACAO2.md) | Segunda rodada: anéis da Conquistas no rodapé e pontuação compacta no canto superior direito; Atividade agrupada por jogo/dia (horas, conquistas, screenshots). |
 
 ## Áreas específicas
 

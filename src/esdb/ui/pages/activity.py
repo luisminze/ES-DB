@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import re
 from collections import defaultdict
 from datetime import datetime
 
@@ -63,68 +65,114 @@ class ActivityPage(QWidget):
             self._build_sessions()
 
     # ------------------------------------------------------------- feed
+    @staticmethod
+    def _norm(title: str) -> str:
+        """Normaliza um título para casar jogo de sessão com jogo de conquista."""
+        t = re.sub(r"[™®©]", "", title or "")
+        t = re.sub(r"[^0-9a-zA-Z]+", "", t)
+        return t.casefold()
+
     def _build_feed(self) -> None:
-        events = self._feed_events()
-        if not events:
+        groups = self._feed_groups()
+        if not groups:
             self._lay.addWidget(empty_label("Sem atividade registrada ainda."))
             self._lay.addStretch()
             return
         current_month = None
-        for ev in events:
-            ym = (ev["when"].year, ev["when"].month)
+        for g in groups:
+            ym = (g["when"].year, g["when"].month)
             if ym != current_month:
                 current_month = ym
                 div = QLabel(f"{_MONTHS[ym[1]]} DE {ym[0]}")
                 div.setObjectName("Divider")
                 self._lay.addWidget(div)
-            self._lay.addWidget(self._event_widget(ev))
+            self._lay.addWidget(self._group_widget(g))
         self._lay.addStretch()
 
-    def _event_widget(self, ev: dict) -> QFrame:
+    def _group_widget(self, g: dict) -> QFrame:
+        """Um card por jogo/dia, com tudo que aconteceu (Update2)."""
         card = QFrame()
-        card.setObjectName("Card" if ev["big"] else "Tile")
+        card.setObjectName("Card")
         lay = QHBoxLayout(card)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(12)
-        if ev.get("cover"):
-            lay.addWidget(cover_label(ev["cover"], ev.get("title", ""), 48, 48))
-        elif ev["big"] and ev.get("game"):
-            lay.addWidget(cover_label(ev["game"].cover_path,
-                                      ev["game"].display_title, 60, 90))
+        if g.get("cover"):
+            size = (60, 90) if g.get("is_lib") else (52, 52)
+            lay.addWidget(cover_label(g["cover"], g["title"], *size), 0, Qt.AlignTop)
+
         text = QVBoxLayout()
-        title = QLabel(ev["title"])
+        text.setSpacing(2)
+        head = QHBoxLayout()
+        title = QLabel(g["title"])
         title.setObjectName("CardTitle")
         title.setWordWrap(True)
-        when = QLabel(ev["when"].strftime("%d/%m/%Y %H:%M"))
-        when.setObjectName("CardMeta")
-        text.addWidget(title)
-        text.addWidget(when)
+        date = QLabel(g["date"].strftime("%d/%m/%Y"))
+        date.setObjectName("CardMeta")
+        date.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        head.addWidget(title, 1)
+        head.addWidget(date)
+        text.addLayout(head)
+
+        for line in self._group_lines(g):
+            lab = QLabel(line)
+            lab.setObjectName("CardMeta")
+            lab.setWordWrap(True)
+            text.addWidget(lab)
         lay.addLayout(text, 1)
         return card
 
-    def _feed_events(self) -> list[dict]:
+    @staticmethod
+    def _group_lines(g: dict) -> list[str]:
+        lines: list[str] = []
+        if g["secs"] > 0:
+            extra = " · primeira vez jogando" if g["first_play"] else ""
+            lines.append(f"🎮 Jogou {format_duration(g['secs'])}{extra}")
+        for h in sorted(g["milestones"]):
+            lines.append(f"🏅 Alcançou {h} h de jogo")
+        for name, grade in g["achievements"][:8]:
+            lines.append(f"🏆 Desbloqueou \"{name}\" ({grade})")
+        if len(g["achievements"]) > 8:
+            lines.append(f"🏆 +{len(g['achievements']) - 8} conquistas")
+        if g["screenshots"] > 0:
+            lines.append(f"📷 {g['screenshots']} screenshot(s)")
+        return lines
+
+    def _feed_groups(self) -> list[dict]:
         lib = self._app.library
+        tz = self._app.tz
+        groups: dict[tuple, dict] = {}
+
+        def grp(key, date, title, cover, is_lib) -> dict:
+            k = (key, date)
+            g = groups.get(k)
+            if g is None:
+                g = {"date": date, "title": title, "cover": cover,
+                     "is_lib": is_lib, "secs": 0, "first_play": False,
+                     "milestones": [], "achievements": [], "screenshots": 0,
+                     "when": datetime.combine(date, datetime.min.time(), tzinfo=tz)}
+                groups[k] = g
+            return g
+
+        def touch(g, when):
+            if when > g["when"]:
+                g["when"] = when
+
         valid = sorted((s for s in lib.sessions if s.is_valid),
                        key=lambda s: s.started_at)
-        events: list[dict] = []
         seen_games: set[int] = set()
-        seen_platforms: set[str] = set()
         cumulative: dict[int, int] = defaultdict(int)
         milestone_hit: set[tuple[int, int]] = set()
-        daily: dict = defaultdict(lambda: {"secs": 0, "games": set(), "when": None})
-
         for s in valid:
-            g = lib.games_by_id.get(s.game_id)
-            if g is None:
+            game = lib.games_by_id.get(s.game_id)
+            if game is None:
                 continue
+            d = s.started_at.astimezone(tz).date()
+            g = grp(("lib", s.game_id), d, game.display_title, game.cover_path, True)
+            g["secs"] += s.duration_seconds
+            touch(g, s.ended_at)
             if s.game_id not in seen_games:
                 seen_games.add(s.game_id)
-                events.append({"when": s.started_at, "big": True, "game": g,
-                               "title": f"Você jogou {g.display_title} pela primeira vez."})
-            if g.platform and g.platform not in seen_platforms:
-                seen_platforms.add(g.platform)
-                events.append({"when": s.started_at, "big": False, "game": g,
-                               "title": f"Primeira vez em {g.platform}."})
+                g["first_play"] = True
             before = cumulative[s.game_id]
             cumulative[s.game_id] += s.duration_seconds
             after = cumulative[s.game_id]
@@ -132,34 +180,43 @@ class ActivityPage(QWidget):
                 thr = h * 3600
                 if before < thr <= after and (s.game_id, h) not in milestone_hit:
                     milestone_hit.add((s.game_id, h))
-                    events.append({"when": s.ended_at, "big": True, "game": g,
-                                   "title": f"Você alcançou {h} h em {g.display_title}."})
-            d = s.started_at.astimezone(self._app.tz).date()
-            daily[d]["secs"] += s.duration_seconds
-            daily[d]["games"].add(s.game_id)
-            daily[d]["when"] = s.ended_at
+                    g["milestones"].append(h)
 
-        for d, agg in daily.items():
-            events.append({"when": agg["when"], "big": False, "game": None,
-                           "title": f"Você jogou {format_duration(agg['secs'])} "
-                                    f"em {len(agg['games'])} jogo(s)."})
-
-        # Conquistas desbloqueadas entram cronologicamente (ES-DB-Update1).
-        for g in self._app.conquistas_games():
-            for a in g.achievements:
+        # Conquistas: casa com o jogo da biblioteca por título normalizado.
+        norm_map = {self._norm(gm.display_title): gid
+                    for gid, gm in lib.games_by_id.items()}
+        for ga in self._app.conquistas_games():
+            lib_gid = norm_map.get(self._norm(ga.title))
+            for a in ga.achievements:
                 if not (a.unlocked and a.unlocked_at):
                     continue
                 when = a.unlocked_at
                 if when.tzinfo is None:
-                    when = when.replace(tzinfo=self._app.tz)
-                events.append({
-                    "when": when, "big": False, "game": None,
-                    "cover": a.icon_path or g.icon_path,
-                    "title": f"🏆 Você desbloqueou \"{a.name}\" em {g.title} "
-                             f"({a.grade.label})."})
+                    when = when.replace(tzinfo=tz)
+                d = when.astimezone(tz).date()
+                if lib_gid is not None:
+                    game = lib.games_by_id[lib_gid]
+                    g = grp(("lib", lib_gid), d, game.display_title,
+                            game.cover_path, True)
+                else:
+                    g = grp(("ach", ga.comm_id), d, ga.title,
+                            a.icon_path or ga.icon_path, False)
+                g["achievements"].append((a.name, a.grade.label))
+                touch(g, when)
 
-        events.sort(key=lambda e: e["when"], reverse=True)
-        return events
+        # Screenshots: data pela modificação do arquivo (melhor-esforço).
+        for gid, game in lib.games_by_id.items():
+            for path in lib.screenshots_for(game):
+                try:
+                    mt = datetime.fromtimestamp(os.path.getmtime(path), tz)
+                except OSError:
+                    continue
+                g = grp(("lib", gid), mt.date(), game.display_title,
+                        game.cover_path, True)
+                g["screenshots"] += 1
+                touch(g, mt)
+
+        return sorted(groups.values(), key=lambda g: g["when"], reverse=True)
 
     # --------------------------------------------------------- sessions
     def _build_sessions(self) -> None:
