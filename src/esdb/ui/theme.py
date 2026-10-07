@@ -1,0 +1,185 @@
+"""Tema Playnite/Helium: paleta e folha de estilo (INTERFACE.md §4).
+
+Separa *chrome* (barra + navegação) do **painel de conteúdo escuro**. Acento
+vermelho reservado a seleção, foco e ações primárias — nunca única indicação de
+estado (a seleção também muda peso/contorno).
+"""
+
+from __future__ import annotations
+
+DARK = {
+    "chrome_bg": "#0C0D10",
+    "chrome_surface": "#141519",
+    "panel_bg": "#15171C",
+    "panel_surface": "#1C1F26",
+    "panel_surface_2": "#232731",
+    "text": "#E8EAED",
+    "text_dim": "#9BA1AD",
+    "text_faint": "#6B7280",
+    "border": "#2A2E38",
+    "accent": "#EB5E54",
+    "accent_dim": "#8E2F28",
+}
+
+LIGHT = {
+    "chrome_bg": "#ECEEF1",
+    "chrome_surface": "#FFFFFF",
+    "panel_bg": "#15171C",          # painel permanece escuro em ambos
+    "panel_surface": "#1C1F26",
+    "panel_surface_2": "#232731",
+    "text": "#E8EAED",
+    "text_dim": "#9BA1AD",
+    "text_faint": "#6B7280",
+    "border": "#2A2E38",
+    "accent": "#B5392C",
+    "accent_dim": "#8E2F28",
+}
+
+
+def palette(theme: str) -> dict[str, str]:
+    return LIGHT if theme == "light" else DARK
+
+
+def build_qss(p: dict[str, str]) -> str:
+    return f"""
+    QWidget {{
+        color: {p['text']};
+        font-size: 14px;
+        font-family: "Inter", "Segoe UI", "Noto Sans", sans-serif;
+    }}
+    QLabel {{ color: {p['text']}; background: transparent; }}
+    #Chrome {{ background: {p['chrome_bg']}; }}
+    #TopBar {{ background: {p['chrome_surface']}; border-bottom: 1px solid {p['border']}; }}
+    #Logo {{ font-size: 18px; font-weight: 800; color: {p['text']}; padding: 0 6px; }}
+    #LogoAccent {{ color: {p['accent']}; }}
+
+    #SearchBox {{
+        background: {p['chrome_bg']}; border: 1px solid {p['border']};
+        border-radius: 16px; padding: 7px 14px; color: {p['text']};
+        selection-background-color: {p['accent']};
+    }}
+    #SearchBox:focus {{ border: 1px solid {p['accent']}; }}
+
+    QPushButton#ChromeBtn {{
+        background: {p['chrome_bg']}; border: 1px solid {p['border']};
+        border-radius: 16px; padding: 7px 14px; color: {p['text']};
+    }}
+    QPushButton#ChromeBtn:hover {{ border-color: {p['accent']}; }}
+    QPushButton#ChromeBtn:pressed {{ background: {p['panel_surface_2']}; }}
+
+    QPushButton#IconBtn {{
+        background: transparent; border: 1px solid transparent;
+        border-radius: 10px; padding: 6px; min-width: 20px; min-height: 20px;
+    }}
+    QPushButton#IconBtn:hover {{
+        background: {p['chrome_bg']}; border-color: {p['border']};
+    }}
+    QPushButton#IconBtn:pressed {{ background: {p['panel_surface_2']}; }}
+
+    #Nav {{ background: {p['chrome_bg']}; }}
+    QPushButton#NavPill {{
+        text-align: left; background: transparent; border: none;
+        border-radius: 10px; padding: 11px 16px; margin: 2px 10px;
+        color: {p['text_dim']}; font-size: 14px;
+    }}
+    QPushButton#NavPill:hover {{ background: {p['chrome_surface']}; color: {p['text']}; }}
+    QPushButton#NavPill:checked {{
+        background: {p['accent']}; color: white; font-weight: 700;
+    }}
+    QPushButton#NavGhost {{
+        text-align: left; background: transparent; border: none;
+        padding: 9px 16px; margin: 1px 10px; color: {p['text_faint']};
+    }}
+    QPushButton#NavGhost:hover {{ color: {p['text']}; }}
+    QPushButton#NavGhost:checked {{ color: {p['accent']}; font-weight: 700; }}
+
+    #Panel {{ background: {p['panel_bg']}; border-radius: 16px; }}
+    #PageTitle {{ font-size: 24px; font-weight: 800; color: {p['text']}; }}
+    #PageSubtitle {{ color: {p['text_dim']}; font-size: 13px; }}
+    #SectionTitle {{ font-size: 16px; font-weight: 700; color: {p['text']}; }}
+
+    QComboBox {{
+        background: {p['panel_surface']}; border: 1px solid {p['border']};
+        border-radius: 10px; padding: 6px 12px; min-height: 20px;
+    }}
+    QComboBox:hover {{ border-color: {p['accent']}; }}
+    QComboBox QAbstractItemView {{
+        background: {p['panel_surface']}; border: 1px solid {p['border']};
+        selection-background-color: {p['accent']}; outline: none;
+    }}
+
+    #Tile {{
+        background: {p['panel_surface']}; border: 1px solid {p['border']};
+        border-radius: 14px;
+    }}
+    #TileValue {{ font-size: 26px; font-weight: 800; color: {p['text']}; }}
+    #TileLabel {{ color: {p['text_dim']}; font-size: 12px; }}
+    #TileAccent {{ font-size: 26px; font-weight: 800; color: {p['accent']}; }}
+
+    #Card {{
+        background: {p['panel_surface']}; border: 1px solid {p['border']};
+        border-radius: 12px;
+    }}
+    #Card:hover {{ border-color: {p['accent']}; }}
+    #CardTitle {{ font-weight: 700; color: {p['text']}; }}
+    #CardMeta {{ color: {p['text_dim']}; font-size: 12px; }}
+    #Cover {{ border-radius: 8px; background: {p['panel_surface_2']}; }}
+    #Placeholder {{
+        border-radius: 8px; background: {p['panel_surface_2']};
+        color: {p['text_faint']}; font-size: 30px; font-weight: 800;
+    }}
+
+    QScrollArea {{ border: none; background: transparent; }}
+    #ScrollBody {{ background: {p['panel_bg']}; }}
+
+    /* Identidade da Retrospectiva: carvão + acento vermelho (não Steam). */
+    #RadarCard {{
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+            stop:0 #221015, stop:0.5 {p['panel_surface']}, stop:1 {p['panel_bg']});
+        border: 1px solid {p['border']}; border-left: 3px solid {p['accent']};
+        border-radius: 14px;
+    }}
+    #StreakCard {{
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 #241015, stop:0.5 {p['panel_surface']}, stop:1 #241015);
+        border: 1px solid {p['border']}; border-left: 3px solid {p['accent']};
+        border-radius: 14px;
+    }}
+    #RetroCard {{
+        background: {p['panel_surface']}; border: 1px solid {p['border']};
+        border-left: 3px solid {p['accent']}; border-radius: 14px;
+    }}
+    #PodiumRank {{ color: {p['text_dim']}; font-weight: 800; letter-spacing: 1px; }}
+    #PodiumWinner {{
+        background: {p['panel_surface']};
+        border: 1px solid {p['accent']}; border-radius: 12px;
+    }}
+    #RetroYear {{ color: {p['accent']}; font-size: 40px; font-weight: 900; }}
+    #RetroHero {{ font-size: 30px; font-weight: 800; color: {p['text']}; }}
+    #KickerText {{ color: {p['accent']}; font-weight: 800; }}
+    QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}
+    QScrollBar::handle:vertical {{ background: {p['border']}; border-radius: 5px; min-height: 30px; }}
+    QScrollBar::handle:vertical:hover {{ background: {p['accent_dim']}; }}
+    QScrollBar::add-line, QScrollBar::sub-line {{ height: 0; }}
+
+    QTableWidget {{
+        background: {p['panel_surface']}; border: 1px solid {p['border']};
+        border-radius: 12px; gridline-color: {p['border']};
+        selection-background-color: {p['accent_dim']};
+    }}
+    QHeaderView::section {{
+        background: {p['panel_surface_2']}; color: {p['text_dim']};
+        border: none; padding: 8px; font-weight: 600;
+    }}
+    QTableWidget::item {{ padding: 6px; }}
+
+    #Bar {{ background: {p['panel_surface_2']}; border-radius: 5px; }}
+    #BarFill {{ background: {p['accent']}; border-radius: 5px; }}
+    #Chip {{
+        background: {p['panel_surface_2']}; border: 1px solid {p['border']};
+        border-radius: 12px; padding: 3px 10px; color: {p['text_dim']}; font-size: 12px;
+    }}
+    #Divider {{ color: {p['text_faint']}; font-weight: 700; font-size: 12px; }}
+    QCheckBox {{ color: {p['text']}; padding: 3px; }}
+    QCheckBox::indicator:checked {{ background: {p['accent']}; border-radius: 3px; }}
+    """
