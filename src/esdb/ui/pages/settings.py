@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtWidgets import (QComboBox, QFileDialog, QFrame, QGridLayout,
-                               QHBoxLayout, QLabel, QLineEdit, QPushButton,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QFrame,
+                               QGridLayout, QHBoxLayout, QLabel, QLineEdit,
+                               QPushButton, QVBoxLayout, QWidget)
 
 from ...config import stats_home
 from ...data.source_adapter import GameSessionTrackerSqliteAdapter
@@ -86,8 +86,23 @@ class SettingsPage(QWidget):
         self._scripts_status.setObjectName("CardMeta")
         self._lay.addWidget(self._scripts_status)
 
-        self._lay.addWidget(section_title("Conquistas (emuladores)"))
-        self._lay.addWidget(QLabel(
+        self._lay.addWidget(section_title("Conquistas"))
+        self._ach_enabled = QCheckBox("Habilitar conquistas")
+        self._ach_enabled.setChecked(app.config.achievements_enabled)
+        self._ach_enabled.toggled.connect(self._on_ach_toggled)
+        self._lay.addWidget(self._ach_enabled)
+        hint = QLabel("Ao desativar, tudo relacionado a conquistas é ocultado e o "
+                      "aplicativo reinicia. Ative para voltar a exibir.")
+        hint.setObjectName("CardMeta")
+        hint.setWordWrap(True)
+        self._lay.addWidget(hint)
+
+        # Pastas dos emuladores (visíveis apenas com as conquistas habilitadas).
+        self._emu_box = QWidget()
+        emu_lay = QVBoxLayout(self._emu_box)
+        emu_lay.setContentsMargins(0, 0, 0, 0)
+        emu_lay.setSpacing(8)
+        emu_lay.addWidget(QLabel(
             "Aponte a pasta de troféus de cada emulador. Deixe em branco para "
             "detecção automática. Somente leitura — nada é modificado."))
         self._emu_edits: dict[str, QLineEdit] = {}
@@ -106,8 +121,10 @@ class SettingsPage(QWidget):
             row.addWidget(tag)
             row.addWidget(edit, 1)
             row.addWidget(browse)
-            self._lay.addLayout(row)
+            emu_lay.addLayout(row)
             self._emu_edits[attr] = edit
+        self._emu_box.setVisible(app.config.achievements_enabled)
+        self._lay.addWidget(self._emu_box)
 
         self._lay.addWidget(section_title("Aparência"))
         theme_row = QHBoxLayout()
@@ -131,6 +148,9 @@ class SettingsPage(QWidget):
         save_row.addStretch()
         self._lay.addLayout(save_row)
         self._lay.addStretch()
+
+    def _on_ach_toggled(self, checked: bool) -> None:
+        self._emu_box.setVisible(checked)
 
     def _browse_esde(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "Diretório do ES-DE",
@@ -221,10 +241,14 @@ class SettingsPage(QWidget):
             else "Scripts do ES-DB não instalados.")
 
     def _save(self) -> None:
-        cfg = self._app.config
-        cfg.esde_home = self._esde_edit.text().strip()
-        cfg.session_db = self._db_combo.currentText().strip()
-        cfg.theme = "light" if self._theme.currentText() == "claro" else "dark"
+        from dataclasses import replace
+        changes = {
+            "esde_home": self._esde_edit.text().strip(),
+            "session_db": self._db_combo.currentText().strip(),
+            "theme": "light" if self._theme.currentText() == "claro" else "dark",
+            "achievements_enabled": self._ach_enabled.isChecked(),
+        }
         for attr, edit in self._emu_edits.items():
-            setattr(cfg, attr, edit.text().strip())
+            changes[attr] = edit.text().strip()
+        cfg = replace(self._app.config, **changes)
         self._app.reconfigure(cfg)
