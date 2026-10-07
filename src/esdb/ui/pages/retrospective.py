@@ -283,6 +283,69 @@ class MonthlyStackedChart(QWidget):
             y += line_h
 
 
+class ExploreGrid(QWidget):
+    """Grade responsiva de capas — colunas calculadas pela largura (uniforme)."""
+
+    CELL_W = 104
+    SPACING = 16
+
+    def __init__(self, items: list[dict]) -> None:
+        super().__init__()
+        self._items = items
+        self._cols = 0
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setSpacing(self.SPACING)
+        self._grid.setAlignment(Qt.AlignTop)
+        self._relayout(force=True)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._relayout()
+
+    def _columns(self) -> int:
+        width = self.width()
+        return max(1, (width + self.SPACING) // (self.CELL_W + self.SPACING))
+
+    def _relayout(self, force: bool = False) -> None:
+        cols = self._columns()
+        if cols == self._cols and not force:
+            return
+        self._cols = cols
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.setParent(None)
+                w.deleteLater()
+        for c in range(40):
+            self._grid.setColumnStretch(c, 0)
+        for i, item in enumerate(self._items):
+            self._grid.addWidget(self._cell(item), i // cols, i % cols,
+                                 Qt.AlignHCenter | Qt.AlignTop)
+        for c in range(cols):
+            self._grid.setColumnStretch(c, 1)
+
+    def _cell(self, item: dict) -> QWidget:
+        cell = QWidget()
+        cell.setFixedWidth(self.CELL_W)
+        cv = QVBoxLayout(cell)
+        cv.setContentsMargins(0, 0, 0, 0)
+        cv.setSpacing(3)
+        cv.addWidget(cover_label(item["cover"], item["title"], 92, 138),
+                     0, Qt.AlignHCenter)
+        if item["first"]:
+            badge = QLabel("1ª VEZ")
+            badge.setObjectName("ExploreBadge")
+            badge.setAlignment(Qt.AlignHCenter)
+            cv.addWidget(badge, 0, Qt.AlignHCenter)
+        info = QLabel(item["info"])
+        info.setObjectName("ExplorePct")
+        info.setAlignment(Qt.AlignHCenter)
+        cv.addWidget(info)
+        return cell
+
+
 class RetrospectivePage(QWidget):
     def __init__(self, app) -> None:
         super().__init__()
@@ -562,40 +625,25 @@ class RetrospectivePage(QWidget):
 
     def _explore_grid(self, r: YearReview) -> QWidget:
         lib = self._app.library
+        total = r.metrics.total_seconds or 1.0
+        items: list[dict] = []
+        for ranked in r.metrics.top_games[:100]:
+            g = lib.games_by_id.get(ranked.key)
+            pct = ranked.seconds / total * 100
+            pct_txt = "< 1%" if 0 < pct < 1 else f"{pct:.0f}%"
+            first = (g.first_played_at.astimezone(self._app.tz).year == r.year
+                     if (g and g.first_played_at) else False)
+            items.append({
+                "cover": g.cover_path if g else None,
+                "title": ranked.label,
+                "info": f"{pct_txt} · {ranked.sessions}×",
+                "first": first,
+            })
         host = QFrame()
         host.setObjectName("RetroCard")
         outer = QVBoxLayout(host)
         outer.setContentsMargins(16, 14, 16, 16)
-        grid = QGridLayout()
-        grid.setSpacing(14)
-        grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        games = r.metrics.top_games[:100]
-        total = r.metrics.total_seconds or 1.0
-        cols = 7
-        for i, ranked in enumerate(games):
-            g = lib.games_by_id.get(ranked.key)
-            pct = ranked.seconds / total * 100
-            pct_txt = "< 1%" if 0 < pct < 1 else f"{pct:.0f}%"
-            cell = QWidget()
-            cv = QVBoxLayout(cell)
-            cv.setContentsMargins(0, 0, 0, 0)
-            cv.setSpacing(3)
-            cv.addWidget(cover_label(g.cover_path if g else None,
-                                     ranked.label, 92, 138), 0, Qt.AlignHCenter)
-            first = g.first_played_at.astimezone(self._app.tz).year == r.year if (
-                g and g.first_played_at) else False
-            if first:
-                badge = QLabel("1ª VEZ")
-                badge.setObjectName("ExploreBadge")
-                badge.setAlignment(Qt.AlignHCenter)
-                cv.addWidget(badge, 0, Qt.AlignHCenter)
-            info = QLabel(f"{pct_txt} · {ranked.sessions}×")
-            info.setObjectName("ExplorePct")
-            info.setAlignment(Qt.AlignHCenter)
-            cv.addWidget(info)
-            cell.setFixedWidth(104)
-            grid.addWidget(cell, i // cols, i % cols)
-        outer.addLayout(grid)
+        outer.addWidget(ExploreGrid(items))
         return host
 
     def _monthly_breakdown(self, year: int) -> tuple[dict[int, dict[int, float]], float]:
