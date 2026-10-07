@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QDialog, QGridLayout, QHBoxLayout, QLabel,
 
 from ...domain.calculations import format_duration
 from ...domain.models import Game
-from ..widgets import cover_label, section_title, stat_tile
+from ..widgets import cover_fit_label, cover_label, section_title, stat_tile
 
 
 class GameDetailDialog(QDialog):
@@ -27,7 +27,8 @@ class GameDetailDialog(QDialog):
 
         head = QHBoxLayout()
         head.setSpacing(16)
-        head.addWidget(cover_label(game.cover_path, game.display_title, 140, 210))
+        head.addWidget(cover_fit_label(game.cover_path, game.display_title, 140),
+                       0, Qt.AlignTop)
         info = QVBoxLayout()
         title = QLabel(game.display_title)
         title.setObjectName("PageTitle")

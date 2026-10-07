@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QFrame, QGridLayout, QLabel, QScrollArea,
 
 from ...domain.calculations import format_duration
 from ...domain.models import Game
-from ..widgets import cover_label
+from ..widgets import cover_fit_label
 from .base import clear_layout, empty_label
 
 COVER_W, COVER_H = 150, 225
@@ -27,8 +27,8 @@ class GameCard(QFrame):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 12, 12, 12)
         lay.setSpacing(6)
-        lay.addWidget(cover_label(game.cover_path, game.display_title,
-                                  COVER_W, COVER_H), 0, Qt.AlignHCenter)
+        lay.addWidget(cover_fit_label(game.cover_path, game.display_title,
+                                      COVER_W), 0, Qt.AlignHCenter)
         title = QLabel(game.display_title)
         title.setObjectName("CardTitle")
         title.setWordWrap(True)

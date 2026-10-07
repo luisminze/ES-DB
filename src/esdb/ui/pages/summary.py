@@ -15,7 +15,7 @@ from ...domain.calculations import Metrics, format_duration
 from ...domain.periods import year_period
 from ...domain.year_review import available_years, compute_year_review
 from ..charts import SEGMENT_COLORS, RingChart
-from ..widgets import cover_label, ranking_list, section_title, stat_tile
+from ..widgets import cover_fit_label, ranking_list, section_title, stat_tile
 from .base import clear_layout, empty_label, scroll_container
 
 _PLATFORM_COLOR = {"RPCS3": "#4A90D9", "Xenia": "#4FB15A", "shadPS4": "#7C5CCB"}
@@ -146,8 +146,8 @@ class SummaryPage(QWidget):
         covers.setSpacing(12)
         for ranked in m.top_games[:5]:
             g = lib.games_by_id.get(ranked.key)
-            covers.addWidget(cover_label(g.cover_path if g else None,
-                                         ranked.label, 92, 138))
+            covers.addWidget(cover_fit_label(g.cover_path if g else None,
+                                             ranked.label, 92))
         covers.addStretch()
         holder = QWidget()
         holder.setLayout(covers)

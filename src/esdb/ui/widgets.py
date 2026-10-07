@@ -86,31 +86,43 @@ def section_title(text: str) -> QLabel:
     return lab
 
 
-def load_cover(path: str | None, width: int, height: int) -> QPixmap | None:
+def load_cover(path: str | None, width: int, height: int,
+               crop: bool = False) -> QPixmap | None:
+    """Carrega a capa.
+
+    - ``crop=False`` (padrão): **respeita o aspecto original**, escalando para
+      caber dentro de ``width×height`` sem cortar nem distorcer.
+    - ``crop=True``: preenche a caixa recortando o excedente (uso antigo).
+    """
     if not path or not Path(path).is_file():
         return None
-    key = (path, width, height)
+    key = (path, width, height, crop)
     cached = _COVER_CACHE.get(key)
     if cached is not None:
         return cached
     pix = QPixmap(path)
     if pix.isNull():
         return None
-    scaled = pix.scaled(width, height, Qt.KeepAspectRatioByExpanding,
-                        Qt.SmoothTransformation)
-    if scaled.width() > width or scaled.height() > height:
-        x = max(0, (scaled.width() - width) // 2)
-        y = max(0, (scaled.height() - height) // 2)
-        scaled = scaled.copy(x, y, width, height)
+    if crop:
+        scaled = pix.scaled(width, height, Qt.KeepAspectRatioByExpanding,
+                            Qt.SmoothTransformation)
+        if scaled.width() > width or scaled.height() > height:
+            x = max(0, (scaled.width() - width) // 2)
+            y = max(0, (scaled.height() - height) // 2)
+            scaled = scaled.copy(x, y, width, height)
+    else:
+        scaled = pix.scaled(width, height, Qt.KeepAspectRatio,
+                            Qt.SmoothTransformation)
     _COVER_CACHE[key] = scaled
     return scaled
 
 
-def cover_label(path: str | None, title: str, width: int, height: int) -> QLabel:
+def cover_label(path: str | None, title: str, width: int, height: int,
+                crop: bool = False) -> QLabel:
     lab = QLabel()
     lab.setFixedSize(width, height)
     lab.setAlignment(Qt.AlignCenter)
-    pix = load_cover(path, width, height)
+    pix = load_cover(path, width, height, crop)
     if pix is not None:
         lab.setObjectName("Cover")
         lab.setPixmap(pix)
@@ -118,6 +130,28 @@ def cover_label(path: str | None, title: str, width: int, height: int) -> QLabel
         lab.setObjectName("Placeholder")
         initials = "".join(w[0] for w in title.split()[:2]).upper() or "?"
         lab.setText(initials)
+    return lab
+
+
+def cover_fit_label(path: str | None, title: str, width: int) -> QLabel:
+    """Capa com **largura fixa e altura dinâmica** conforme o aspecto da imagem
+    original — nada é cortado ou esticado."""
+    pix = QPixmap(path) if (path and Path(path).is_file()) else QPixmap()
+    lab = QLabel()
+    lab.setAlignment(Qt.AlignCenter)
+    if not pix.isNull():
+        key = ("fitw", path, width)
+        scaled = _COVER_CACHE.get(key)
+        if scaled is None:
+            scaled = pix.scaledToWidth(width, Qt.SmoothTransformation)
+            _COVER_CACHE[key] = scaled
+        lab.setObjectName("Cover")
+        lab.setFixedSize(scaled.size())
+        lab.setPixmap(scaled)
+    else:
+        lab.setObjectName("Placeholder")
+        lab.setFixedSize(width, int(width * 1.5))
+        lab.setText("".join(w[0] for w in title.split()[:2]).upper() or "?")
     return lab
 
 
