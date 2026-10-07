@@ -43,6 +43,7 @@ class AppConfig:
     rpcs3_dir: str = ""                 # pasta de troféus do RPCS3 (CONQUISTAS.md)
     shadps4_dir: str = ""
     xenia_dir: str = ""
+    achievements_enabled: bool = True   # liga/desliga toda a área de Conquistas
 
     def tzinfo(self) -> timezone:
         if self.tz_offset_minutes is None:

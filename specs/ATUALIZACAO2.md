@@ -26,6 +26,20 @@ Cada card mostra a capa, o título do jogo, a data e as linhas de atividade.
 Quando um dado do mesmo jogo ocorre em outro dia, é criado **um novo card** para
 aquele dia (um card por jogo por dia).
 
+## 3. Ativar/desativar conquistas ([CONQUISTAS.md](CONQUISTAS.md))
+
+Em **Configurações → Conquistas** há a opção **"Habilitar conquistas"**:
+
+- **Habilitado** (padrão): permanece como está — aba Conquistas, pontuação,
+  anéis, conquistas no feed e no Resumo.
+- **Desabilitado**: **tudo relacionado a conquistas é ocultado** — a pílula
+  Conquistas some da navegação, o feed de Atividade não mostra desbloqueios, o
+  Resumo não exibe a seção de conquistas e as pastas dos emuladores ficam
+  ocultas nas Configurações. Ao alternar a opção, **o aplicativo é reiniciado**
+  para aplicar o novo estado.
+
+A preferência é persistida em `config.json` (`achievements_enabled`).
+
 ### Casamento de jogo (sessão × conquista)
 
 Como o título da conquista do emulador pode diferir do título da sessão

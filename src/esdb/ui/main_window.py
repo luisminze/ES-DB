@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from PySide6.QtCore import QSize, Qt
+import sys
+
+from PySide6.QtCore import QProcess, QSize, Qt
 from PySide6.QtGui import QIcon, QKeySequence, QPixmap, QShortcut
-from PySide6.QtWidgets import (QButtonGroup, QComboBox, QHBoxLayout, QLabel,
-                               QLineEdit, QMainWindow, QPushButton,
-                               QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QComboBox,
+                               QHBoxLayout, QLabel, QLineEdit, QMainWindow,
+                               QPushButton, QStackedWidget, QVBoxLayout, QWidget)
 
 from ..config import AppConfig, save_config, stats_home
 from ..conquistas.scanner import ConquistasService
@@ -153,7 +155,9 @@ class MainWindow(QMainWindow):
         self._nav_group = QButtonGroup(self)
         self._nav_group.setExclusive(True)
         self._nav_buttons: dict[str, QPushButton] = {}
-        for key, label in PILLS:
+        pills = [(k, lbl) for k, lbl in PILLS
+                 if k != "achievements" or self.config.achievements_enabled]
+        for key, label in pills:
             btn = QPushButton(label)
             btn.setObjectName("NavPill")
             btn.setCheckable(True)
@@ -234,6 +238,8 @@ class MainWindow(QMainWindow):
         self.refresh_pages()
 
     def conquistas_games(self) -> list:
+        if not self.config.achievements_enabled:
+            return []
         if self._conquistas_cache is None:
             service = ConquistasService(self.config.rpcs3_dir,
                                         self.config.shadps4_dir,
@@ -245,15 +251,25 @@ class MainWindow(QMainWindow):
         return self._conquistas_cache
 
     def reconfigure(self, cfg: AppConfig) -> None:
+        # Ligar/desligar as Conquistas muda a navegação: reinicia o app.
+        toggled = cfg.achievements_enabled != self.config.achievements_enabled
         self.config = cfg
         self.tz = cfg.tzinfo()
         save_config(cfg)
+        if toggled:
+            self._restart()
+            return
         self._apply_theme()
         self.filters = {"platforms": set(), "genres": set(), "developers": set(),
                         "options": {}}
         self._conquistas_cache = None
         self.reload_library()
         self.navigate("library")
+
+    def _restart(self) -> None:
+        """Reinicia o aplicativo (usado ao ligar/desligar as Conquistas)."""
+        QProcess.startDetached(sys.executable, ["-m", "esdb"])
+        QApplication.instance().quit()
 
     def navigate(self, key: str) -> None:
         self._current = key
