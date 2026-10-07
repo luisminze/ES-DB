@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "esdb"
+version = "0.1.0"
+description = "ES-DB — visualizador local de sessões de jogo do ES-DE"
+requires-python = ">=3.12"
+dependencies = ["PySide6>=6.6"]
+
+[project.scripts]
+esdb = "esdb.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

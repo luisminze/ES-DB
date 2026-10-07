@@ -1,0 +1,28 @@
+# Ambiente virtual e dependências
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Testes e cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Dados locais do ES-DB (ficam em ~/ES-DE-STATS, não versionar se aparecerem)
+*.db
+*.db-wal
+*.db-shm
+
+# Editores / SO
+.vscode/
+.idea/
+*.swp
+.DS_Store
