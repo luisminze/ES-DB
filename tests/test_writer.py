@@ -29,13 +29,17 @@ def test_install_and_remove_scripts(tmp_path):
     scripts = tmp_path / "ES-DE" / "scripts"
     db = tmp_path / "DB" / "Perfil.db"
     written = install_scripts(scripts, db)
-    assert len(written) == 2
+    assert len(written) == 3            # game-start, game-end e export.sh
     assert scripts_installed(scripts)
     end = scripts / "game-end" / "esdb-tracker.sh"
     content = end.read_text()
     assert MARKER in content and str(db) in content
     assert "ps2) PLATFORM='Sony PlayStation 2'" in content
     assert end.stat().st_mode & 0o111            # executável
+    # export.sh gerado na pasta do banco (.gametracker)
+    export = db.parent / ".gametracker" / "export.sh"
+    assert export.is_file() and MARKER in export.read_text()
+    assert "sessions.csv" in export.read_text()
 
     # um script de terceiros deve ser preservado na remoção
     other = scripts / "game-start" / "outro.sh"
