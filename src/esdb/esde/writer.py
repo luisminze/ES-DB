@@ -83,7 +83,8 @@ def _start_script(db_path: Path) -> str:
     rt = _runtime_dir(db_path)
     return f"""#!/usr/bin/env bash
 {MARKER}
-# Evento game-start do ES-DE. Argumentos: $1=ROM $2=arquivo $3=nome $4=sistema.
+# Evento game-start do ES-DE. Argumentos do ES-DE:
+#   $1=ROM  $2=nome do jogo  $3=sistema (curto)  $4=plataforma (nome completo).
 set -euo pipefail
 RUNTIME_DIR="{rt}"
 RUNTIME="$RUNTIME_DIR/current_session"
@@ -91,12 +92,13 @@ LOG="$RUNTIME_DIR/tracker.log"
 mkdir -p "$RUNTIME_DIR"
 {_LOG_FN}
 ROM="${{1:-}}"
-NAME="${{3:-}}"
-SYSTEM="${{4:-}}"
+NAME="${{2:-}}"
+SYSTEM="${{3:-}}"
+PLATFORM="${{4:-}}"
 if [ -z "$NAME" ]; then log "ERRO: nome ausente no game-start"; exit 0; fi
-printf '%s\\n%s\\n%s\\n%s\\n' \\
-  "$(date +%Y-%m-%dT%H:%M:%S%z)" "$NAME" "$SYSTEM" "$ROM" > "$RUNTIME"
-log "Sessão iniciada: $NAME [$SYSTEM]"
+printf '%s\\n%s\\n%s\\n%s\\n%s\\n' \\
+  "$(date +%Y-%m-%dT%H:%M:%S%z)" "$NAME" "$SYSTEM" "$PLATFORM" "$ROM" > "$RUNTIME"
+log "Sessão iniciada: $NAME [${{PLATFORM:-$SYSTEM}}]"
 exit 0
 """
 
@@ -128,7 +130,8 @@ END="$(date +%Y-%m-%dT%H:%M:%S%z)"
 START="$(sed -n '1p' "$RUNTIME")"
 NAME="$(sed -n '2p' "$RUNTIME")"
 SYSTEM="$(sed -n '3p' "$RUNTIME")"
-ROM="$(sed -n '4p' "$RUNTIME")"
+PLATFORM="$(sed -n '4p' "$RUNTIME")"
+ROM="$(sed -n '5p' "$RUNTIME")"
 rm -f "$RUNTIME"
 [ -n "$START" ] && [ -n "$NAME" ] || exit 0
 
@@ -137,7 +140,10 @@ E="$(date -d "$END" +%s 2>/dev/null || echo 0)"
 DUR=$(( E - S ))
 [ "$DUR" -lt 0 ] && DUR=0
 
+# O ES-DE já fornece a plataforma em $4; se vier vazia, deriva do sistema.
+if [ -z "$PLATFORM" ]; then
 {_platform_case()}
+fi
 
 esc() {{ printf "%s" "$1" | sed "s/'/''/g"; }}
 NAME_E="$(esc "$NAME")"
