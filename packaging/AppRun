@@ -1,0 +1,5 @@
+#!/bin/bash
+# AppRun do ES-DB: executa o binário empacotado pelo PyInstaller.
+HERE="$(dirname "$(readlink -f "${0}")")"
+export PATH="$HERE/usr/bin:$PATH"
+exec "$HERE/usr/lib/esdb/esdb" "$@"

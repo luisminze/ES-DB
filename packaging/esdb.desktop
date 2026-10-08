@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ES-DB
+GenericName=Sessões de jogo do ES-DE
+Comment=Visualizador local de sessões, estatísticas e conquistas do ES-DE
+Exec=esdb
+Icon=esdb
+Categories=Game;Utility;
+Terminal=false
+StartupWMClass=ES-DB

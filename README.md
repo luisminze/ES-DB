@@ -24,6 +24,18 @@ Na primeira execução, informe em **Configurações** o **diretório do ES-DE**
 imagens baixadas (`downloaded_media`), metadados (`gamelist.xml`) e o banco de
 sessões. Nenhuma fonte analisada é modificada.
 
+## Gerar o executável AppImage (Linux x86_64)
+
+```bash
+.venv/bin/pip install pyinstaller
+bash packaging/build_appimage.sh
+# saída: dist/ES-DB-x86_64.AppImage
+```
+
+O script empacota o app com PyInstaller (incl. PySide6), monta o AppDir com ícone
+e `.desktop` e gera o AppImage com o `appimagetool` (baixado automaticamente).
+Depois, basta `chmod +x dist/ES-DB-x86_64.AppImage && ./dist/ES-DB-x86_64.AppImage`.
+
 ## Testes
 
 ```bash
