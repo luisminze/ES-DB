@@ -152,21 +152,23 @@ O ES-DE passa quatro argumentos para `game-start` e `game-end`:
 | Posição | Conteúdo |
 | --- | --- |
 | `$1` | caminho absoluto da ROM |
-| `$2` | nome do arquivo sem extensão |
-| `$3` | nome do jogo |
-| `$4` | nome do sistema (curto, ex.: `ps2`) |
+| `$2` | **nome do jogo** (ex.: `Forza Horizon 2`) |
+| `$3` | nome do sistema (curto, ex.: `xbox360`) |
+| `$4` | nome da **plataforma** (completo, ex.: `Microsoft Xbox 360`) |
 
 ### Comportamento
 
-1. `game-start` grava início (timestamp `%Y-%m-%dT%H:%M:%S%z`), nome, sistema e
-   ROM em um arquivo de runtime ao lado do banco (`.gametracker/current_session`).
+1. `game-start` grava início (timestamp `%Y-%m-%dT%H:%M:%S%z`), nome, sistema,
+   plataforma e ROM em um arquivo de runtime ao lado do banco
+   (`.gametracker/current_session`).
 2. `game-end` lê o runtime, calcula a duração em segundos, faz *upsert* do jogo
-   (`INSERT ... ON CONFLICT(name, platform) DO UPDATE`) e insere a sessão.
-3. O nome legível da **plataforma** é derivado do sistema por um mapeamento
-   embutido (ex.: `ps2` → `Sony PlayStation 2`, `xbox360` → `Microsoft Xbox 360`,
-   `snes` → `Nintendo SNES (Super Nintendo)`); sistemas desconhecidos usam o
-   próprio nome curto. O mapeamento deve casar com os nomes já usados nos dados
-   existentes do usuário para que os registros se fundam.
+   (`INSERT ... ON CONFLICT(name, platform) DO UPDATE`) e insere a sessão. Como a
+   identidade é `(name, platform)`, jogar de novo o mesmo jogo **atualiza** o
+   registro existente (não cria duplicata).
+3. A **plataforma** vem diretamente de `$4` (nome completo fornecido pelo ES-DE).
+   Se `$4` vier vazia, o nome legível é derivado do sistema (`$3`) por um
+   mapeamento embutido (ex.: `ps2` → `Sony PlayStation 2`), com fallback para o
+   próprio nome curto.
 4. Aspas simples em nome/ROM/plataforma são escapadas antes de compor o SQL.
 5. Duração negativa é normalizada para zero; encerramentos sem runtime não geram
    sessão (coerente com [MAIN.md](MAIN.md) §4).
