@@ -57,6 +57,23 @@ A pasta de dados do aplicativo passou de `~/ES-DE-STATS` para **`~/ES-DB`** e o
 subdiretório de bancos de `DATABASE/` para **`database/`** (variável de ambiente
 `ES_DB_HOME`). Estrutura: `~/ES-DB/{database,derived,cache}` + `config.json`.
 
+## 6. GameSessionTracker adaptado e integrado ao ES-DB
+
+Todo o pipeline do `~/GameSessionTracker` foi **adaptado e trazido para dentro do
+software**, operando sob `~/ES-DB`:
+
+- Os scripts de evento gerados pela instalação (`esde/writer.py`) agora replicam
+  o `common.sh` (log + escape), o `game-start.sh`, o `game-end.sh` **e o
+  `export.sh`** do GameSessionTracker: registram início/fim em
+  `~/ES-DB/database/.gametracker/tracker.log`, gravam a sessão no banco e, ao
+  encerrar, **exportam** sessões e resumo por jogo para `~/ES-DB/exports/`.
+- A exportação também é oferecida **pela interface** (Configurações → "Exportar
+  sessões (CSV/TXT)"), portada para Python em `esde/export.py`
+  (`sessions.csv/txt`, `games_summary.csv/txt`).
+- O banco legado `~/GameSessionTracker/database/games.db` foi **movido** para
+  `~/ES-DB/database/games.db` e passou a ser a fonte padrão. O ES-DB não depende
+  mais da pasta `~/GameSessionTracker`.
+
 ### Casamento de jogo (sessão × conquista)
 
 Como o título da conquista do emulador pode diferir do título da sessão

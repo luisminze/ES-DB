@@ -78,8 +78,12 @@ class SettingsPage(QWidget):
         remove_btn = QPushButton("Remover scripts do ES-DB")
         remove_btn.setObjectName("ChromeBtn")
         remove_btn.clicked.connect(self._remove_scripts)
+        export_btn = QPushButton("Exportar sessões (CSV/TXT)")
+        export_btn.setObjectName("ChromeBtn")
+        export_btn.clicked.connect(self._export_sessions)
         scripts_row.addWidget(install_btn)
         scripts_row.addWidget(remove_btn)
+        scripts_row.addWidget(export_btn)
         scripts_row.addStretch()
         self._lay.addLayout(scripts_row)
         self._scripts_status = QLabel()
@@ -198,6 +202,19 @@ class SettingsPage(QWidget):
             return
         self._scripts_status.setText(
             f"✓ {len(written)} scripts instalados em {scripts} → {db}")
+
+    def _export_sessions(self) -> None:
+        from ...esde.export import export_sessions
+        db = self._db_combo.currentText().strip()
+        if not db:
+            self._scripts_status.setText("✕ Selecione um banco de sessões.")
+            return
+        try:
+            out = export_sessions(db)
+        except Exception as exc:  # noqa: BLE001
+            self._scripts_status.setText(f"✕ Falha ao exportar: {exc}")
+            return
+        self._scripts_status.setText(f"✓ Sessões exportadas para {out}")
 
     def _remove_scripts(self) -> None:
         scripts = resolve_esde(self._esde_edit.text() or None).scripts
