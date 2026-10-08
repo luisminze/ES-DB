@@ -120,17 +120,17 @@ def build_qss(p: dict[str, str]) -> str:
 
     #Nav {{ background: {p['chrome_bg']}; }}
     QPushButton#NavPill {{
-        text-align: left; background: transparent; border: none;
-        border-radius: 10px; padding: 11px 16px; margin: 2px 10px;
-        color: {p['text_dim']}; font-size: 14px;
+        text-align: center; background: transparent; border: none;
+        border-radius: 9px; padding: 7px 14px; margin: 0 2px;
+        color: {p['text_dim']}; font-size: 13px;
     }}
-    QPushButton#NavPill:hover {{ background: {p['chrome_surface']}; color: {p['text']}; }}
+    QPushButton#NavPill:hover {{ background: {p['panel_surface_2']}; color: {p['text']}; }}
     QPushButton#NavPill:checked {{
         background: {p['accent']}; color: white; font-weight: 700;
     }}
     QPushButton#NavGhost {{
-        text-align: left; background: transparent; border: none;
-        padding: 9px 16px; margin: 1px 10px; color: {p['text_faint']};
+        text-align: center; background: transparent; border: none;
+        border-radius: 9px; padding: 7px 12px; margin: 0 2px; color: {p['text_faint']};
     }}
     QPushButton#NavGhost:hover {{ color: {p['text']}; }}
     QPushButton#NavGhost:checked {{ color: {p['accent']}; font-weight: 700; }}

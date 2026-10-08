@@ -86,7 +86,6 @@ class MainWindow(QMainWindow):
         body = QHBoxLayout()
         body.setContentsMargins(12, 12, 12, 12)
         body.setSpacing(12)
-        body.addWidget(self._build_nav())
         body.addWidget(self._build_panel(), 1)
         wrap = QWidget()
         wrap.setLayout(body)
@@ -108,9 +107,34 @@ class MainWindow(QMainWindow):
         self._search.setPlaceholderText("Buscar jogos…")
         self._search.setClearButtonEnabled(True)
         self._search.textChanged.connect(self._on_search)
-        self._search.setMaximumWidth(360)
+        self._search.setMaximumWidth(300)
         lay.addWidget(self._search)
+
+        # Navegação (abas) ao lado da busca.
+        self._nav_group = QButtonGroup(self)
+        self._nav_group.setExclusive(True)
+        self._nav_buttons: dict[str, QPushButton] = {}
+        pills = [(k, lbl) for k, lbl in PILLS
+                 if k != "achievements" or self.config.achievements_enabled]
+        for key, label in pills:
+            btn = QPushButton(label)
+            btn.setObjectName("NavPill")
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda _=False, k=key: self.navigate(k))
+            self._nav_group.addButton(btn)
+            self._nav_buttons[key] = btn
+            lay.addWidget(btn)
+
         lay.addStretch(1)
+
+        for key, label in GHOSTS:
+            btn = QPushButton(label)
+            btn.setObjectName("NavGhost")
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda _=False, k=key: self.navigate(k))
+            self._nav_group.addButton(btn)
+            self._nav_buttons[key] = btn
+            lay.addWidget(btn)
 
         isize = 26
         self._topbar_icons: list[tuple] = []
@@ -138,37 +162,6 @@ class MainWindow(QMainWindow):
         for btn, icon, isize in getattr(self, "_topbar_icons", []):
             color = pal["accent"] if icon == "funnel" else pal["text"]
             btn.setIcon(nav_icon(icon, color, isize))
-
-    def _build_nav(self) -> QWidget:
-        nav = QWidget()
-        nav.setObjectName("Nav")
-        nav.setFixedWidth(230)
-        lay = QVBoxLayout(nav)
-        lay.setContentsMargins(0, 12, 0, 12)
-        lay.setSpacing(0)
-        self._nav_group = QButtonGroup(self)
-        self._nav_group.setExclusive(True)
-        self._nav_buttons: dict[str, QPushButton] = {}
-        pills = [(k, lbl) for k, lbl in PILLS
-                 if k != "achievements" or self.config.achievements_enabled]
-        for key, label in pills:
-            btn = QPushButton(label)
-            btn.setObjectName("NavPill")
-            btn.setCheckable(True)
-            btn.clicked.connect(lambda _=False, k=key: self.navigate(k))
-            self._nav_group.addButton(btn)
-            self._nav_buttons[key] = btn
-            lay.addWidget(btn)
-        lay.addStretch()
-        for key, label in GHOSTS:
-            btn = QPushButton(label)
-            btn.setObjectName("NavGhost")
-            btn.setCheckable(True)
-            btn.clicked.connect(lambda _=False, k=key: self.navigate(k))
-            self._nav_group.addButton(btn)
-            self._nav_buttons[key] = btn
-            lay.addWidget(btn)
-        return nav
 
     def _build_panel(self) -> QWidget:
         panel = QWidget()
