@@ -15,7 +15,7 @@ def main(out_path: str, size: int = 512) -> int:
         print(f"ícone de origem ausente: {SRC}", file=sys.stderr)
         return 1
     canvas = QImage(size, size, QImage.Format_ARGB32)
-    canvas.fill(QColor(10, 11, 14))          # fundo carvão (combina com o logo)
+    canvas.fill(QColor(0, 0, 0, 0))          # transparente (preserva cantos)
     scaled = src.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
     p = QPainter(canvas)
     p.drawImage((size - scaled.width()) // 2, (size - scaled.height()) // 2, scaled)
