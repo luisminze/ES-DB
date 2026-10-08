@@ -22,7 +22,7 @@ from ...domain.calculations import (Metrics, format_duration, split_by_day,
                                     split_by_month)
 from ...domain.year_review import (YearReview, available_years,
                                    compute_year_review)
-from ..theme import palette
+from ..theme import active, palette
 from ..widgets import (cover_fit_label, cover_label, load_cover, ranking_list,
                        section_title, stat_tile)
 from .base import clear_layout, empty_label, scroll_container
@@ -70,7 +70,8 @@ class RadarChart(QWidget):
             ang = -math.pi / 2 + 2 * math.pi * i / n
             return QPointF(cx + r * math.cos(ang), cy + r * math.sin(ang))
 
-        p.setPen(QPen(QColor(255, 255, 255, 38), 1))
+        grid_col = QColor(active()["text"]); grid_col.setAlpha(45)
+        p.setPen(QPen(grid_col, 1))
         p.setBrush(Qt.NoBrush)
         for ring in (0.25, 0.5, 0.75, 1.0):
             p.drawPolygon(QPolygonF([pt(i, radius * ring) for i in range(n)]))
@@ -87,7 +88,7 @@ class RadarChart(QWidget):
         for i, (_, v) in enumerate(self._data):
             p.drawEllipse(pt(i, radius * (v / maxv)), 3.2, 3.2)
 
-        p.setPen(QColor("#E8EAED"))
+        p.setPen(QColor(active()["text"]))
         font = p.font(); font.setPointSize(8); p.setFont(font)
         for i, (label, _) in enumerate(self._data):
             lp = pt(i, radius + 20)
@@ -148,17 +149,20 @@ class MonthlyStackedChart(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         w, h = self.width(), self.height()
+        pal = active()
         path = QPainterPath()
         path.addRoundedRect(QRectF(0, 0, w, h), 14, 14)
         grad = QLinearGradient(0, 0, w, 0)
-        grad.setColorAt(0.0, QColor("#3A0F18"))
-        grad.setColorAt(0.22, QColor("#141622"))
-        grad.setColorAt(0.78, QColor("#141622"))
-        grad.setColorAt(1.0, QColor("#3A0F18"))
+        grad.setColorAt(0.0, QColor(pal["accent_wash"]))
+        grad.setColorAt(0.22, QColor(pal["panel_surface"]))
+        grad.setColorAt(0.78, QColor(pal["panel_surface"]))
+        grad.setColorAt(1.0, QColor(pal["accent_wash"]))
         p.fillPath(path, grad)
+        p.setPen(QPen(QColor(pal["border"]), 1))
+        p.drawPath(path)
         p.setClipPath(path)
 
-        p.setPen(QColor("#FFFFFF"))
+        p.setPen(QColor(pal["text"]))
         tf = QFont(p.font()); tf.setPointSize(14); tf.setBold(True)
         p.setFont(tf)
         p.drawText(QRectF(0, 16, w, 30), Qt.AlignHCenter,
@@ -169,14 +173,14 @@ class MonthlyStackedChart(QWidget):
         pw, ph = w - left - right, h - top - bottom
         small = QFont(p.font()); small.setPointSize(8); small.setBold(False)
         p.setFont(small)
+        grid_col = QColor(pal["text"]); grid_col.setAlpha(30)
 
-        steps = self._ymax // 4 if self._ymax % 4 == 0 else 4
         steps = 4
         for i in range(steps + 1):
             yy = py + ph - ph * i / steps
-            p.setPen(QColor(255, 255, 255, 28))
+            p.setPen(grid_col)
             p.drawLine(QPointF(px, yy), QPointF(px + pw, yy))
-            p.setPen(QColor("#9BA1AD"))
+            p.setPen(QColor(pal["text_dim"]))
             label = "< 1%" if i == 0 else f"{int(self._ymax * i / steps)}%"
             p.drawText(QRectF(0, yy - 10, left - 8, 20),
                        Qt.AlignRight | Qt.AlignVCenter, label)
@@ -188,9 +192,10 @@ class MonthlyStackedChart(QWidget):
             cx = px + bw * (m - 0.5)
             self._bars[m] = QRectF(cx - bw / 2, py, bw, ph)
             if self._hover == m:
-                p.fillRect(QRectF(cx - barw / 2 - 3, py, barw + 6, ph),
-                           QColor(255, 255, 255, 22))
-                p.fillRect(QRectF(cx - 1.5, py, 3, ph), QColor(255, 255, 255, 210))
+                band = QColor(pal["text"]); band.setAlpha(22)
+                mark = QColor(pal["accent"])
+                p.fillRect(QRectF(cx - barw / 2 - 3, py, barw + 6, ph), band)
+                p.fillRect(QRectF(cx - 1.5, py, 3, ph), mark)
             gs = self._bd.get(m, {})
             y_cursor = py + ph
             x0 = cx - barw / 2
@@ -207,7 +212,7 @@ class MonthlyStackedChart(QWidget):
                 seg_h = ph * (outros / self._total * 100) / self._ymax
                 p.fillRect(QRectF(x0, y_cursor - seg_h, barw, seg_h),
                            QColor(_OUTROS_COLOR))
-            p.setPen(QColor("#9BA1AD"))
+            p.setPen(QColor(pal["text_dim"]))
             p.drawText(QRectF(cx - bw / 2, py + ph + 4, bw, 18),
                        Qt.AlignHCenter, _MONTHS_DOT[m])
 
@@ -250,10 +255,11 @@ class MonthlyStackedChart(QWidget):
         tx = max(px, min(tx, px + pw - tw))
         ty = max(py + 6, min(py + ph / 3, py + ph - th))
 
+        pal = active()
         panel = QPainterPath()
         panel.addRoundedRect(QRectF(tx, ty, tw, th), 10, 10)
-        p.fillPath(panel, QColor("#231318"))
-        pen = QPen(QColor("#EB5E54"))
+        p.fillPath(panel, QColor(pal["panel_surface"]))
+        pen = QPen(QColor(pal["accent"]))
         pen.setWidthF(1.2)
         p.setPen(pen)
         p.drawPath(panel)
@@ -270,13 +276,13 @@ class MonthlyStackedChart(QWidget):
             fx = QFont(p.font())
             fx.setBold(True)
             p.setFont(fx)
-            # números/percentuais em vermelho (identidade); rótulos em branco
-            p.setPen(QColor("#FFFFFF") if strong.endswith(":") else QColor("#EB5E54"))
+            # números/percentuais em vermelho (identidade); rótulos no texto normal
+            p.setPen(QColor(pal["text"]) if strong.endswith(":") else QColor(pal["accent"]))
             p.drawText(QPointF(text_x, y), strong)
             sw = p.fontMetrics().horizontalAdvance(strong)
             fx.setBold(False)
             p.setFont(fx)
-            p.setPen(QColor("#E4DAD7"))
+            p.setPen(QColor(pal["text_dim"]))
             # quebra simples do restante para caber
             p.drawText(QRectF(text_x + sw, y - 12, tw - (text_x - tx) - pad - sw, 16),
                        Qt.AlignLeft | Qt.AlignVCenter, rest)

@@ -40,6 +40,23 @@ Em **Configurações → Conquistas** há a opção **"Habilitar conquistas"**:
 
 A preferência é persistida em `config.json` (`achievements_enabled`).
 
+## 4. Tema claro unificado e opção "Sistema" ([INTERFACE.md](INTERFACE.md))
+
+- O **modo claro** foi corrigido e unificado: todo o aplicativo fica claro
+  (painel, cards e texto), usando um branco **levemente mais escuro** para
+  separar seções; o texto passa a ser escuro e o acento vermelho é um pouco mais
+  forte para contraste sobre branco. Os gráficos (anéis, radar, barras mensais) e
+  os ícones da barra superior passaram a seguir o tema ativo.
+- A seleção de tema foi renomeada para **Claro / Escuro** e ganhou a opção
+  **Sistema**, que segue automaticamente o esquema de cor do sistema operacional
+  (e reaplica quando o SO troca).
+
+## 5. Pasta do programa renomeada
+
+A pasta de dados do aplicativo passou de `~/ES-DE-STATS` para **`~/ES-DB`** e o
+subdiretório de bancos de `DATABASE/` para **`database/`** (variável de ambiente
+`ES_DB_HOME`). Estrutura: `~/ES-DB/{database,derived,cache}` + `config.json`.
+
 ### Casamento de jogo (sessão × conquista)
 
 Como o título da conquista do emulador pode diferir do título da sessão

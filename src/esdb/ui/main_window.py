@@ -26,7 +26,7 @@ from .pages.retrospective import RetrospectivePage
 from .pages.settings import SettingsPage
 from .pages.statistics import StatisticsPage
 from .pages.summary import SummaryPage
-from .theme import build_qss, palette
+from .theme import build_qss, palette, set_active
 from .widgets import nav_icon
 from ..resources import icon_file
 
@@ -57,6 +57,7 @@ class MainWindow(QMainWindow):
         self.tz = config.tzinfo()
         self.library: Library | None = None
         self._conquistas_cache: list | None = None
+        self._sys_theme_connected = False
         self.period = build_period("all", self.tz)
         self.search_text = ""
         self.filters = {"platforms": set(), "genres": set(), "developers": set(),
@@ -124,8 +125,8 @@ class MainWindow(QMainWindow):
         lay.addWidget(self._search)
         lay.addStretch(1)
 
-        accent = palette(self.config.theme)["accent"]
         isize = 26
+        self._topbar_icons: list[tuple] = []
         for icon, tip, name, handler in (
             ("funnel", "Filtros", "Filtros", self.open_filters),
             ("refresh", "Atualizar (Ctrl+R)", "Atualizar", self.refresh_data),
@@ -134,16 +135,22 @@ class MainWindow(QMainWindow):
         ):
             btn = QPushButton()
             btn.setObjectName("IconBtn")
-            btn.setIcon(nav_icon(icon, accent if icon == "funnel" else "#E8EAED",
-                                 isize))
             btn.setIconSize(QSize(isize, isize))
             btn.setToolTip(tip)
             btn.setAccessibleName(name)
             btn.clicked.connect(handler)
             lay.addWidget(btn)
+            self._topbar_icons.append((btn, icon, isize))
             if icon == "funnel":
                 self._filters_btn = btn
+        self._recolor_topbar_icons()
         return bar
+
+    def _recolor_topbar_icons(self) -> None:
+        pal = palette(self.config.theme)
+        for btn, icon, isize in getattr(self, "_topbar_icons", []):
+            color = pal["accent"] if icon == "funnel" else pal["text"]
+            btn.setIcon(nav_icon(icon, color, isize))
 
     def _build_nav(self) -> QWidget:
         nav = QWidget()
@@ -215,7 +222,29 @@ class MainWindow(QMainWindow):
 
     # ----------------------------------------------------------- actions
     def _apply_theme(self) -> None:
-        self.setStyleSheet(build_qss(palette(self.config.theme)))
+        pal = palette(self.config.theme)
+        set_active(pal)                       # para gráficos pintados com QPainter
+        self.setStyleSheet(build_qss(pal))
+        self._recolor_topbar_icons()
+        # No modo "Sistema", reaplica quando o SO troca de esquema de cor.
+        if self.config.theme == "system" and not self._sys_theme_connected:
+            app = QApplication.instance()
+            if app is not None:
+                try:
+                    app.styleHints().colorSchemeChanged.connect(
+                        lambda _=None: self._reapply_system_theme())
+                    self._sys_theme_connected = True
+                except Exception:
+                    pass
+
+    def _reapply_system_theme(self) -> None:
+        if self.config.theme != "system":
+            return
+        pal = palette("system")
+        set_active(pal)
+        self.setStyleSheet(build_qss(pal))
+        if self._current:
+            self.pages[self._current].update_view()
 
     def reload_library(self) -> None:
         if self.library is not None:

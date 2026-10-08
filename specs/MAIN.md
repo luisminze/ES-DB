@@ -22,7 +22,7 @@ ES-DB identifica e utiliza automaticamente os recursos necessários — scripts,
 imagens baixadas, metadados (`gamelist.xml`), banco de sessões e demais
 arquivos de configuração — sem exigir ajustes manuais adicionais (§4, RF-01,
 [ESDE.md](ESDE.md)). O armazenamento interno do próprio ES-DB (banco derivado,
-cache e bancos de sessão geridos) fica sob a pasta do programa `~/ES-DE-STATS`
+cache e bancos de sessão geridos) fica sob a pasta do programa `~/ES-DB`
 (§13 e [ESDE.md](ESDE.md) §2).
 
 > As evoluções desta versão (integração com o ES-DE, gravação de sessões, nova
@@ -69,7 +69,7 @@ derivados e **não** são a fonte de importação.
 O banco de sessões pode estar em dois lugares equivalentes, ambos sugeridos
 automaticamente quando existirem:
 
-- `~/ES-DE-STATS/DATABASE/<nome>.db` — banco criado e gerido pelo próprio ES-DB
+- `~/ES-DB/database/<nome>.db` — banco criado e gerido pelo próprio ES-DB
   ([ESDE.md](ESDE.md));
 - `~/GameSessionTracker/database/games.db` — instalação original do script
   (na máquina inspecionada: `/home/strokyze/GameSessionTracker/database/games.db`).
@@ -634,9 +634,9 @@ retrospectiva, múltiplas fontes e importação local de CSV/JSON.
   de o basename da ROM casar com o nome da mídia. ROMs renomeadas após o scrape,
   ou sistemas com nomenclatura divergente, podem não casar; nesses casos o
   usuário pode corrigir localmente (`GameOverride`).
-- O armazenamento interno do ES-DB fica em `~/ES-DE-STATS` (banco derivado em
-  `derived/`, cache em `cache/`, bancos de sessão em `DATABASE/`), sobreponível
-  por `ES_DE_STATS_HOME` ([ESDE.md](ESDE.md) §2).
+- O armazenamento interno do ES-DB fica em `~/ES-DB` (banco derivado em
+  `derived/`, cache em `cache/`, bancos de sessão em `database/`), sobreponível
+  por `ES_DB_HOME` ([ESDE.md](ESDE.md) §2).
 - A plataforma é aplicativo desktop exclusivamente local. Como o rastreador atual
   usa Bash e está em Linux, Linux é a plataforma inicial recomendada; suporte a
   outros sistemas operacionais deve ser decidido antes do empacotamento.
@@ -648,7 +648,7 @@ requisitos adicionais.
 
 | # | Evolução | Especificação |
 | --- | --- | --- |
-| RF-11 | **Integração e gravação ES-DE**: configuração em passo único do diretório do ES-DE, descoberta automática de scripts/mídia/metadados, criação e gestão de múltiplos bancos e instalação dos scripts `game-start`/`game-end`; pasta do programa `~/ES-DE-STATS`. | [ESDE.md](ESDE.md) |
+| RF-11 | **Integração e gravação ES-DE**: configuração em passo único do diretório do ES-DE, descoberta automática de scripts/mídia/metadados, criação e gestão de múltiplos bancos e instalação dos scripts `game-start`/`game-end`; pasta do programa `~/ES-DB`. | [ESDE.md](ESDE.md) |
 | RF-12 | **Interface reformulada** (Playnite/Helium): barra superior, navegação em pílulas, painel de conteúdo, temas e acento vermelho. | [INTERFACE.md](INTERFACE.md) |
 | RF-13 | **Painel de filtros** estilo Playnite (plataforma, período, ordenação+direção, opções, metadados do ES-DE e predefinições). | [FILTROS.md](FILTROS.md) |
 | RF-14 | **Aba Atividade**: feed pessoal (estilo PlayerActivities) + lista de sessões. | [ATIVIDADE.md](ATIVIDADE.md) |
@@ -662,8 +662,8 @@ requisitos adicionais.
 - Capas, screenshots e metadados ricos (gênero, desenvolvedora, publisher, nota,
   data) passam a vir do ES-DE quando disponíveis, habilitando filtros antes
   fora de escopo ([FILTROS.md](FILTROS.md)).
-- O armazenamento interno migrou para `~/ES-DE-STATS` (banco derivado em
-  `derived/`, cache em `cache/`, bancos de sessão em `DATABASE/`).
+- O armazenamento interno migrou para `~/ES-DB` (banco derivado em
+  `derived/`, cache em `cache/`, bancos de sessão em `database/`).
 - A leitura de qualquer fonte analisada permanece **somente leitura** (RNF-05); a
   criação de bancos e a instalação de scripts são escritas locais e opcionais, em
   arquivos que pertencem ao ES-DB ou na pasta de scripts do ES-DE.

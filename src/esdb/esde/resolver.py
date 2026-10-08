@@ -56,7 +56,7 @@ def resolve_esde(home: str | Path | None = None) -> EsdeLayout:
 def discover_session_databases() -> list[Path]:
     """Bancos de sessão candidatos, mais provável primeiro (ESDE.md §3)."""
     out: list[Path] = []
-    stats_db = Path.home() / "ES-DE-STATS" / "DATABASE"
+    stats_db = Path.home() / "ES-DB" / "database"
     if stats_db.is_dir():
         out.extend(sorted(p for p in stats_db.glob("*.db")))
     legacy = Path.home() / "GameSessionTracker" / "database" / "games.db"

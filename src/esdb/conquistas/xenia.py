@@ -5,7 +5,7 @@ O XDBF é o contêiner de perfil do Xbox 360. Namespaces usados:
 
 Resolve o **nome do jogo** a partir do GPD do dashboard (``FFFE07D1.gpd``) e
 **extrai os ícones** (imagem do jogo e, quando presentes no GPD, das conquistas)
-para o cache em ``~/ES-DE-STATS/cache/xenia``.
+para o cache em ``~/ES-DB/cache/xenia``.
 
 Implementação defensiva (CONQUISTAS.md §3): tolera arquivos truncados, isola
 falhas por item e nunca marca desbloqueio incerto como certo.
@@ -50,8 +50,8 @@ def _utf16be_z(b: bytes, o: int) -> tuple[str, int]:
 
 
 def _cache_root() -> Path:
-    env = os.environ.get("ES_DE_STATS_HOME")
-    return (Path(env) if env else Path.home() / "ES-DE-STATS") / "cache" / "xenia"
+    env = os.environ.get("ES_DB_HOME")
+    return (Path(env) if env else Path.home() / "ES-DB") / "cache" / "xenia"
 
 
 def _entries(data: bytes):

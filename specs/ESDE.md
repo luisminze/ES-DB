@@ -50,18 +50,18 @@ reconhecida:
 ### 2.2 Pasta do ES-DB (dados próprios)
 
 Todos os dados que o ES-DB cria vivem sob uma única pasta, por padrão
-`~/ES-DE-STATS`, sobreponível pela variável de ambiente `ES_DE_STATS_HOME`:
+`~/ES-DB`, sobreponível pela variável de ambiente `ES_DB_HOME`:
 
 ```text
-~/ES-DE-STATS/
-  DATABASE/            # bancos de sessão criados/geridos pelo usuário
+~/ES-DB/
+  database/            # bancos de sessão criados/geridos pelo usuário
     <nome>.db          # ex.: Strokyze.db
     .gametracker       # marcador de runtime/propriedade do ES-DB
   derived/derived.db   # banco derivado interno (cache analítico)
   cache/thumbnails/    # miniaturas de screenshots
 ```
 
-- Um banco novo é criado como `~/ES-DE-STATS/DATABASE/<nome>.db`, onde `<nome>`
+- Um banco novo é criado como `~/ES-DB/database/<nome>.db`, onde `<nome>`
   é o nome escolhido, sem separadores de caminho e sem prefixo imposto.
 - O caminho pode ser alterado no diálogo de criação.
 
@@ -76,7 +76,7 @@ A partir do diretório do ES-DE informado em passo único, o `EsdeResolver`
 | Mídia | `<ES-DE>/downloaded_media/<system>/<tipo>/` | Capas e screenshots (§6). |
 | Metadados | `<ES-DE>/gamelists/<system>/gamelist.xml` | Enriquecimento (§6). |
 | Configuração | `<ES-DE>/settings/es_settings.xml` | Caminhos personalizados de ROM/mídia. |
-| Banco de sessões | sugerido entre `~/ES-DE-STATS/DATABASE/*.db` e `~/GameSessionTracker/database/games.db` | Fonte das sessões. |
+| Banco de sessões | sugerido entre `~/ES-DB/database/*.db` e `~/GameSessionTracker/database/games.db` | Fonte das sessões. |
 
 Regras:
 
@@ -85,7 +85,7 @@ Regras:
 2. Se `es_settings.xml` apontar diretórios de mídia/ROM personalizados, eles têm
    precedência sobre os padrões.
 3. Nenhuma varredura de mídia/metadados escreve em `~/ES-DE`; resultados vão para
-   o banco derivado e o cache em `~/ES-DE-STATS`.
+   o banco derivado e o cache em `~/ES-DB`.
 
 ## 4. Junção de jogos com recursos do ES-DE (RF-GE-01)
 
@@ -126,7 +126,7 @@ Campos lidos do `gamelist.xml`: `name`, `desc`, `genre`, `developer`,
 
 1. **Capas**: a imagem de `downloaded_media/<system>/covers/<rom-base>.*` é a
    capa principal da Biblioteca e da página do jogo. A varredura é assíncrona,
-   com cache de miniaturas em `~/ES-DE-STATS/cache/` ([DESIGN.md](DESIGN.md),
+   com cache de miniaturas em `~/ES-DB/cache/` ([DESIGN.md](DESIGN.md),
    [SCREENSHOTS.md](SCREENSHOTS.md)).
 2. **Screenshots**: `downloaded_media/<system>/screenshots/` é adicionada
    automaticamente como fonte de screenshots (origem `esde_auto`), somando-se às
@@ -187,7 +187,7 @@ O ES-DE passa quatro argumentos para `game-start` e `game-end`:
    encontrou e o que falta.
 2. Um jogo com ROM correspondente mostra capa e metadados do ES-DE; sem
    correspondência, usa placeholder e metadados vazios, sem erro.
-3. Criar um banco gera `~/ES-DE-STATS/DATABASE/<nome>.db` válido e vazio, sem
+3. Criar um banco gera `~/ES-DB/database/<nome>.db` válido e vazio, sem
    sobrescrever arquivos existentes.
 4. É possível manter vários bancos, alternar o ativo (reanalisando) e escolher o
    de gravação independentemente.
