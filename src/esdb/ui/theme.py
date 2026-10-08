@@ -19,25 +19,67 @@ DARK = {
     "border": "#2A2E38",
     "accent": "#EB5E54",
     "accent_dim": "#8E2F28",
+    "accent_wash": "#221015",       # fundo de cards com leve tom de acento
 }
 
+# Tema claro unificado: tudo claro; separadores usam um branco levemente mais
+# escuro (panel_surface_2). Texto escuro, acento vermelho legível sobre branco.
 LIGHT = {
-    "chrome_bg": "#ECEEF1",
+    "chrome_bg": "#E7E9ED",
     "chrome_surface": "#FFFFFF",
-    "panel_bg": "#15171C",          # painel permanece escuro em ambos
-    "panel_surface": "#1C1F26",
-    "panel_surface_2": "#232731",
-    "text": "#E8EAED",
-    "text_dim": "#9BA1AD",
-    "text_faint": "#6B7280",
-    "border": "#2A2E38",
-    "accent": "#B5392C",
-    "accent_dim": "#8E2F28",
+    "panel_bg": "#F3F4F7",
+    "panel_surface": "#FFFFFF",
+    "panel_surface_2": "#E9EBEF",   # tom de branco mais escuro, levemente
+    "text": "#1B1E24",
+    "text_dim": "#596070",
+    "text_faint": "#949AA6",
+    "border": "#D6D9E0",
+    "accent": "#C62C22",
+    "accent_dim": "#EBB9B3",
+    "accent_wash": "#FBECEA",
 }
+
+_ACTIVE: dict[str, str] = DARK
 
 
 def palette(theme: str) -> dict[str, str]:
-    return LIGHT if theme == "light" else DARK
+    return LIGHT if resolve_theme(theme) == "light" else DARK
+
+
+def resolve_theme(theme: str) -> str:
+    """Resolve 'system' para 'light'/'dark' conforme o SO; repassa os demais."""
+    if theme == "light":
+        return "light"
+    if theme == "dark":
+        return "dark"
+    # 'system' (ou desconhecido): segue o esquema de cor do sistema operacional.
+    try:
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app is not None:
+            scheme = app.styleHints().colorScheme()
+            if scheme == Qt.ColorScheme.Light:
+                return "light"
+            if scheme == Qt.ColorScheme.Dark:
+                return "dark"
+    except Exception:
+        pass
+    return "dark"
+
+
+def set_active(pal: dict[str, str]) -> None:
+    """Registra a paleta em uso, para widgets pintados com QPainter a lerem."""
+    global _ACTIVE
+    _ACTIVE = pal
+
+
+def active() -> dict[str, str]:
+    return _ACTIVE
+
+
+def is_light() -> bool:
+    return _ACTIVE is LIGHT
 
 
 def build_qss(p: dict[str, str]) -> str:
@@ -142,13 +184,13 @@ def build_qss(p: dict[str, str]) -> str:
     /* Identidade da Retrospectiva: carvão + acento vermelho (não Steam). */
     #RadarCard {{
         background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-            stop:0 #221015, stop:0.5 {p['panel_surface']}, stop:1 {p['panel_bg']});
+            stop:0 {p['accent_wash']}, stop:0.5 {p['panel_surface']}, stop:1 {p['panel_bg']});
         border: 1px solid {p['border']}; border-left: 3px solid {p['accent']};
         border-radius: 14px;
     }}
     #StreakCard {{
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 #241015, stop:0.5 {p['panel_surface']}, stop:1 #241015);
+            stop:0 {p['accent_wash']}, stop:0.5 {p['panel_surface']}, stop:1 {p['accent_wash']});
         border: 1px solid {p['border']}; border-left: 3px solid {p['accent']};
         border-radius: 14px;
     }}
@@ -200,5 +242,17 @@ def build_qss(p: dict[str, str]) -> str:
     }}
     #Divider {{ color: {p['text_faint']}; font-weight: 700; font-size: 12px; }}
     QCheckBox {{ color: {p['text']}; padding: 3px; }}
-    QCheckBox::indicator:checked {{ background: {p['accent']}; border-radius: 3px; }}
+    QCheckBox::indicator {{
+        width: 16px; height: 16px; border-radius: 4px;
+        border: 1px solid {p['border']}; background: {p['panel_surface']};
+    }}
+    QCheckBox::indicator:checked {{
+        background: {p['accent']}; border-color: {p['accent']};
+    }}
+    QLineEdit {{
+        background: {p['panel_surface']}; color: {p['text']};
+        border: 1px solid {p['border']}; border-radius: 8px; padding: 6px 10px;
+        selection-background-color: {p['accent']};
+    }}
+    QLineEdit:focus {{ border-color: {p['accent']}; }}
     """

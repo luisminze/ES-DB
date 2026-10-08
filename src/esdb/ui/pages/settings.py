@@ -130,9 +130,15 @@ class SettingsPage(QWidget):
         theme_row = QHBoxLayout()
         theme_row.addWidget(QLabel("Tema:"))
         self._theme = QComboBox()
-        self._theme.addItems(["escuro", "claro"])
-        self._theme.setCurrentText("claro" if app.config.theme == "light" else "escuro")
+        for label, value in (("Claro", "light"), ("Escuro", "dark"),
+                             ("Sistema", "system")):
+            self._theme.addItem(label, value)
+        idx = self._theme.findData(app.config.theme)
+        self._theme.setCurrentIndex(idx if idx >= 0 else 1)
+        hint_sys = QLabel("(Sistema segue o tema do seu SO automaticamente)")
+        hint_sys.setObjectName("CardMeta")
         theme_row.addWidget(self._theme)
+        theme_row.addWidget(hint_sys)
         theme_row.addStretch()
         self._lay.addLayout(theme_row)
 
@@ -165,7 +171,7 @@ class SettingsPage(QWidget):
             self._scripts_status.setText("✕ Informe um nome para o banco.")
             return
         safe = "".join(c for c in name if c not in "/\\")
-        target = stats_home() / "DATABASE" / f"{safe}.db"
+        target = stats_home() / "database" / f"{safe}.db"
         try:
             create_database(target)
         except FileExistsError:
@@ -245,7 +251,7 @@ class SettingsPage(QWidget):
         changes = {
             "esde_home": self._esde_edit.text().strip(),
             "session_db": self._db_combo.currentText().strip(),
-            "theme": "light" if self._theme.currentText() == "claro" else "dark",
+            "theme": self._theme.currentData() or "dark",
             "achievements_enabled": self._ach_enabled.isChecked(),
         }
         for attr, edit in self._emu_edits.items():

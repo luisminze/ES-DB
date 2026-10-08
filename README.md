@@ -54,12 +54,12 @@ src/esdb/
   esde/         # ES-DE: resolver, gamelist, mídia, ROM, writer (scripts/banco)
   conquistas/   # troféus: rpcs3, xenia, shadPS4, scanner
   ui/           # shell Playnite/Helium e páginas (PySide6)
-  config.py     # configuração e pasta do programa (~/ES-DE-STATS)
+  config.py     # configuração e pasta do programa (~/ES-DB)
 tests/          # pytest: domínio, ES-DE, conquistas, banco derivado, writer
 specs/          # especificação do produto
 ```
 
-Todos os dados do ES-DB vivem em `~/ES-DE-STATS` (sobreponível por
-`ES_DE_STATS_HOME`): `config.json`, banco derivado (`derived/esdb.db`) e cache. As
+Todos os dados do ES-DB vivem em `~/ES-DB` (sobreponível por
+`ES_DB_HOME`): `config.json`, banco derivado (`derived/esdb.db`) e cache. As
 fontes analisadas (banco de sessões, `gamelist.xml`, mídia, troféus) são sempre
 lidas em **somente leitura**.

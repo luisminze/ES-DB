@@ -118,7 +118,7 @@ A grade é a visualização principal. Cada card representa um jogo e contém:
 
 Não usar capas remotas: as capas são **arquivos locais** — as que o ES-DE já
 baixou ou as que o usuário informar. Elas devem ser carregadas de forma
-assíncrona, com cache de miniaturas local em `~/ES-DE-STATS/cache/`, para não
+assíncrona, com cache de miniaturas local em `~/ES-DB/cache/`, para não
 bloquear a interface.
 
 | Largura da área de conteúdo | Colunas preferenciais | Largura mínima do card |

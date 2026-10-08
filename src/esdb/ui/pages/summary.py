@@ -94,16 +94,18 @@ class SummaryPage(QWidget):
         rl = QHBoxLayout(rings)
         rl.setContentsMargins(14, 10, 14, 10)
         rl.setSpacing(8)
+        from ..theme import active
+        track = active()["panel_surface_2"]
         comp = int(round(stats.completed_pct))
-        rl.addWidget(RingChart("Jogos 100%", [("#EB5E54", comp), ("#2A2E38", 100 - comp)],
+        rl.addWidget(RingChart("Jogos 100%", [(active()["accent"], comp), (track, 100 - comp)],
                                f"{comp}%", f"{stats.completed_games}/{stats.total_games}"))
         plat = [(_PLATFORM_COLOR.get(e, SEGMENT_COLORS[i % len(SEGMENT_COLORS)]), v)
                 for i, (e, v) in enumerate(sorted(stats.by_platform.items()))]
-        rl.addWidget(RingChart("Por plataforma", plat or [("#2A2E38", 1)],
+        rl.addWidget(RingChart("Por plataforma", plat or [(track, 1)],
                                str(stats.unlocked), "desbloq."))
         rare_pct = int(round(100 * stats.rare_unlocked / stats.unlocked)) if stats.unlocked else 0
         rl.addWidget(RingChart("Raras", [("#E6C04C", stats.rare_unlocked),
-                                         ("#2A2E38", max(0, stats.unlocked - stats.rare_unlocked))],
+                                         (track, max(0, stats.unlocked - stats.rare_unlocked))],
                                str(stats.rare_unlocked), f"{rare_pct}%"))
         self._lay.addWidget(rings)
 

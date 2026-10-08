@@ -1,6 +1,6 @@
 """Configuração do ES-DB e caminhos da pasta do programa (ESDE.md §2).
 
-Tudo vive sob ``~/ES-DE-STATS`` (sobreponível por ``ES_DE_STATS_HOME``):
+Tudo vive sob ``~/ES-DB`` (sobreponível por ``ES_DB_HOME``):
 preferências em ``config.json``, banco derivado em ``derived/`` e cache em
 ``cache/``. A configuração é derivada em **passo único** do diretório do ES-DE.
 """
@@ -19,13 +19,13 @@ from .esde.resolver import DEFAULT_ESDE_HOME, discover_session_databases
 
 
 def stats_home() -> Path:
-    env = os.environ.get("ES_DE_STATS_HOME")
-    return Path(env).expanduser() if env else Path.home() / "ES-DE-STATS"
+    env = os.environ.get("ES_DB_HOME")
+    return Path(env).expanduser() if env else Path.home() / "ES-DB"
 
 
 def ensure_dirs() -> None:
     base = stats_home()
-    for sub in ("DATABASE", "derived", "cache/thumbnails"):
+    for sub in ("database", "derived", "cache/thumbnails"):
         (base / sub).mkdir(parents=True, exist_ok=True)
 
 

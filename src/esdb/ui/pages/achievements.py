@@ -183,6 +183,9 @@ class AchievementsPage(QWidget):
 
     # ------------------------------------------------------ anéis (rodapé)
     def _build_rings(self) -> None:
+        from ..theme import active
+        track = active()["panel_surface_2"]
+        accent = active()["accent"]
         stats = achievement_stats(self._games)
         rings = QFrame()
         rings.setObjectName("RetroCard")
@@ -192,7 +195,7 @@ class AchievementsPage(QWidget):
 
         comp = int(round(stats.completed_pct))
         rl.addWidget(RingChart("Jogos 100%",
-                               [("#EB5E54", comp), ("#2A2E38", 100 - comp)],
+                               [(accent, comp), (track, 100 - comp)],
                                f"{comp}%", f"{stats.completed_games}/{stats.total_games}"))
         plat_segs = [(_PLATFORM_COLOR.get(e, SEGMENT_COLORS[i % len(SEGMENT_COLORS)]), v)
                      for i, (e, v) in enumerate(sorted(stats.by_platform.items()))]
@@ -205,7 +208,7 @@ class AchievementsPage(QWidget):
         rare_pct = int(round(100 * stats.rare_unlocked / stats.unlocked)) if stats.unlocked else 0
         rl.addWidget(RingChart("Raras (ouro+platina)",
                                [("#E6C04C", stats.rare_unlocked),
-                                ("#2A2E38", max(0, stats.unlocked - stats.rare_unlocked))],
+                                (track, max(0, stats.unlocked - stats.rare_unlocked))],
                                str(stats.rare_unlocked), f"{rare_pct}%"))
         rings.setMaximumHeight(190)
         self._rings_lay.addWidget(rings)

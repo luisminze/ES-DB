@@ -9,10 +9,11 @@ from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
+from .theme import active
+
 # Paleta categórica usada nos segmentos (cores distintas, coerentes com o tema).
 SEGMENT_COLORS = ["#EB5E54", "#E0A24A", "#4FB15A", "#3BA7AD", "#4A90D9",
                   "#7C5CCB", "#C06BB0", "#7E8CA0"]
-_TRACK = "#2A2E38"
 
 
 class RingChart(QWidget):
@@ -28,11 +29,13 @@ class RingChart(QWidget):
         self.setMinimumSize(150, 180)
 
     def paintEvent(self, _event) -> None:  # noqa: N802
+        pal = active()
+        track = pal["panel_surface_2"]
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         w, h = self.width(), self.height()
 
-        p.setPen(QColor("#9BA1AD"))
+        p.setPen(QColor(pal["text_dim"]))
         tf = QFont(p.font()); tf.setPointSize(9); tf.setBold(True)
         p.setFont(tf)
         p.drawText(QRectF(0, 4, w, 18), Qt.AlignHCenter, self._title)
@@ -47,7 +50,7 @@ class RingChart(QWidget):
         pen.setWidthF(thickness)
         pen.setCapStyle(Qt.FlatCap)
 
-        pen.setColor(QColor(_TRACK))
+        pen.setColor(QColor(track))
         p.setPen(pen)
         p.drawArc(rect.adjusted(thickness / 2, thickness / 2,
                                 -thickness / 2, -thickness / 2),
@@ -64,12 +67,12 @@ class RingChart(QWidget):
                       start, span)
             start += span
 
-        p.setPen(QColor("#FFFFFF"))
+        p.setPen(QColor(pal["text"]))
         vf = QFont(p.font()); vf.setPointSize(16); vf.setBold(True)
         p.setFont(vf)
         p.drawText(rect, Qt.AlignCenter, self._center_value)
         if self._center_label:
-            p.setPen(QColor("#9BA1AD"))
+            p.setPen(QColor(pal["text_dim"]))
             lf = QFont(p.font()); lf.setPointSize(8); lf.setBold(False)
             p.setFont(lf)
             p.drawText(QRectF(cx, cy + side / 2 + 8, side, 16),

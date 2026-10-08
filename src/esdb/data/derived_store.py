@@ -1,4 +1,4 @@
-"""Banco derivado local (``~/ES-DE-STATS/derived/derived.db``).
+"""Banco derivado local (``~/ES-DB/derived/derived.db``).
 
 Persiste sessões/jogos importados (para sincronização **incremental** e
 idempotente por ``sessions.id``), o catálogo de bancos geridos, as predefinições
