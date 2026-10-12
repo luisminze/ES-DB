@@ -63,6 +63,43 @@ def create_database(path: str | Path, overwrite: bool = False) -> Path:
     return target
 
 
+def clear_game_data(db_path: str | Path, game_id: int) -> bool:
+    """Apaga **permanentemente** as sessões e o registro de um jogo no banco de
+    sessões do ES-DB. Retorna ``True`` se algo foi apagado."""
+    target = Path(db_path).expanduser()
+    if not target.is_file():
+        return False
+    conn = sqlite3.connect(str(target))
+    try:
+        changed = conn.execute(
+            "DELETE FROM sessions WHERE game_id=?", (game_id,)).rowcount
+        changed += conn.execute(
+            "DELETE FROM games WHERE id=?", (game_id,)).rowcount
+        conn.commit()
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        conn.close()
+    return changed > 0
+
+
+def clear_all_data(db_path: str | Path) -> bool:
+    """Apaga **permanentemente** todas as sessões e jogos do banco de sessões."""
+    target = Path(db_path).expanduser()
+    if not target.is_file():
+        return False
+    conn = sqlite3.connect(str(target))
+    try:
+        conn.execute("DELETE FROM sessions")
+        conn.execute("DELETE FROM games")
+        conn.commit()
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        conn.close()
+    return True
+
+
 def _runtime_dir(db_path: Path) -> Path:
     return db_path.parent / ".gametracker"
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QFrame,
                                QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-                               QPushButton, QVBoxLayout, QWidget)
+                               QMessageBox, QPushButton, QVBoxLayout, QWidget)
 
 from ...config import stats_home
 from ...data.source_adapter import GameSessionTrackerSqliteAdapter
@@ -131,6 +131,22 @@ class SettingsPage(QWidget):
         self._lutris_status.setWordWrap(True)
         self._lay.addWidget(self._lutris_status)
 
+        self._lay.addWidget(section_title("Dados"))
+        self._lay.addWidget(QLabel(
+            "Apaga permanentemente as sessões gravadas no banco selecionado. "
+            "Para limpar apenas um jogo, use “Limpar dados” na tela do jogo. "
+            "Jogos reaparecem se voltarem a ser jogados."))
+        data_row = QHBoxLayout()
+        clear_all = QPushButton("Limpar dados de TODOS os jogos")
+        clear_all.setObjectName("ChromeBtn")
+        clear_all.clicked.connect(self._clear_all_data)
+        data_row.addWidget(clear_all)
+        data_row.addStretch()
+        self._lay.addLayout(data_row)
+        self._data_status = QLabel()
+        self._data_status.setObjectName("CardMeta")
+        self._lay.addWidget(self._data_status)
+
         self._lay.addWidget(section_title("Conquistas"))
         self._ach_enabled = QCheckBox("Habilitar conquistas")
         self._ach_enabled.setChecked(app.config.achievements_enabled)
@@ -240,6 +256,23 @@ class SettingsPage(QWidget):
             self._scripts_status.setText(f"✕ Falha ao exportar: {exc}")
             return
         self._scripts_status.setText(f"✓ Sessões exportadas para {out}")
+
+    def _clear_all_data(self) -> None:
+        lib = self._app.library
+        if lib is None:
+            self._data_status.setText("✕ Nenhum banco carregado.")
+            return
+        n = len(lib.games)
+        resp = QMessageBox.warning(
+            self, "Limpar TODOS os dados",
+            f"Apagar PERMANENTEMENTE as sessões de todos os {n} jogos do banco\n"
+            f"{lib.session_db}?\n\nEsta ação não pode ser desfeita.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if resp != QMessageBox.Yes:
+            return
+        lib.clear_all()
+        self._app.refresh_pages()
+        self._data_status.setText("✓ Todos os dados de jogos foram apagados.")
 
     def _lutris_dir(self):
         return stats_home() / "lutris"

@@ -138,6 +138,24 @@ class Library:
         self.store.set_hidden(self.session_db, game_id, True)
         self._build_games({g.id: g for g in self.store.load_games(self.session_db)})
 
+    def clear_game(self, game_id: int) -> bool:
+        """Apaga **permanentemente** as sessões e o registro de um jogo e recarrega."""
+        from ..esde.writer import clear_game_data
+        ok = clear_game_data(self.session_db, game_id)
+        self.store.set_hidden(self.session_db, game_id, False)
+        self.store.reset_source(self.session_db)
+        self.load()
+        return ok
+
+    def clear_all(self) -> bool:
+        """Apaga **permanentemente** todas as sessões e jogos e recarrega."""
+        from ..esde.writer import clear_all_data
+        ok = clear_all_data(self.session_db)
+        self.store.set_setting("hidden_games", {})
+        self.store.reset_source(self.session_db)
+        self.load()
+        return ok
+
     def sessions_for_game(self, game_id: int) -> list[Session]:
         rows = [s for s in self.sessions if s.game_id == game_id]
         rows.sort(key=lambda s: s.started_at, reverse=True)

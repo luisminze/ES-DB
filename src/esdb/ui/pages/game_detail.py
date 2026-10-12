@@ -43,6 +43,11 @@ class GameDetailDialog(QDialog):
         remove_btn.setToolTip("Remove o jogo da biblioteca (as sessões são mantidas)")
         remove_btn.clicked.connect(self._remove)
         title_row.addWidget(remove_btn, 0, Qt.AlignTop)
+        clear_btn = QPushButton("Limpar dados")
+        clear_btn.setObjectName("ChromeBtn")
+        clear_btn.setToolTip("Apaga permanentemente as sessões gravadas deste jogo")
+        clear_btn.clicked.connect(self._clear)
+        title_row.addWidget(clear_btn, 0, Qt.AlignTop)
         info.addLayout(title_row)
         plat = QLabel(f"{game.platform}  ·  {game.system}")
         plat.setObjectName("PageSubtitle")
@@ -122,5 +127,19 @@ class GameDetailDialog(QDialog):
         if resp != QMessageBox.Yes:
             return
         self._app.library.hide_game(self._game.external_id)
+        self._app.refresh_pages()
+        self.accept()
+
+    def _clear(self) -> None:
+        resp = QMessageBox.warning(
+            self, "Limpar dados do jogo",
+            f"Apagar PERMANENTEMENTE todas as sessões gravadas de "
+            f"“{self._game.display_title}”?\n\n"
+            "Esta ação não pode ser desfeita. O jogo reaparece se voltar a ser "
+            "jogado.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if resp != QMessageBox.Yes:
+            return
+        self._app.library.clear_game(self._game.external_id)
         self._app.refresh_pages()
         self.accept()

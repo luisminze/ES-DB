@@ -4,10 +4,48 @@ import sqlite3
 
 import pytest
 
-from esdb.esde.writer import (MARKER, create_database, install_lutris_scripts,
+from esdb.esde.writer import (MARKER, clear_all_data, clear_game_data,
+                              create_database, install_lutris_scripts,
                               install_scripts, lutris_scripts_installed,
                               remove_lutris_scripts, remove_scripts,
                               scripts_installed)
+
+
+def _seed(db):
+    conn = sqlite3.connect(str(db))
+    conn.execute("INSERT INTO games(id,name,platform) VALUES(1,'A','PC'),(2,'B','PC')")
+    conn.execute("INSERT INTO sessions(game_id,start_time,end_time,duration) "
+                 "VALUES(1,'x','y',10),(1,'x','y',20),(2,'x','y',5)")
+    conn.commit()
+    conn.close()
+
+
+def test_clear_game_data(tmp_path):
+    db = create_database(tmp_path / "s.db")
+    _seed(db)
+    assert clear_game_data(db, 1) is True
+    conn = sqlite3.connect(str(db))
+    assert conn.execute("SELECT COUNT(*) FROM games").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
+    assert conn.execute("SELECT id FROM games").fetchone()[0] == 2
+    conn.close()
+    # jogo inexistente não apaga nada
+    assert clear_game_data(db, 999) is False
+
+
+def test_clear_all_data(tmp_path):
+    db = create_database(tmp_path / "s.db")
+    _seed(db)
+    assert clear_all_data(db) is True
+    conn = sqlite3.connect(str(db))
+    assert conn.execute("SELECT COUNT(*) FROM games").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
+    conn.close()
+
+
+def test_clear_missing_db(tmp_path):
+    assert clear_game_data(tmp_path / "nope.db", 1) is False
+    assert clear_all_data(tmp_path / "nope.db") is False
 
 
 def test_create_database_schema(tmp_path):
