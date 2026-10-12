@@ -221,6 +221,147 @@ exit 0
 """
 
 
+# ---------------------------------------------------------------- Lutris
+# O Lutris não tem pasta de eventos como o ES-DE: define-se um "Comando
+# pré-lançamento" e um "Comando pós-saída" (globais ou por jogo) nas opções de
+# Sistema. Os scripts leem variáveis de ambiente que o Lutris expõe:
+#   GAME_NAME (antigo: game_name), STORE (loja), GAME_DIRECTORY (pasta).
+# A ligação início→fim é feita por um arquivo nomeado pelo nome do jogo
+# (sanitizado), o que evita colisões entre jogos diferentes simultâneos.
+_SAFE_NAME = (
+    'SAFE="$(printf \'%s\' "$NAME" | tr -c \'A-Za-z0-9._-\' \'_\' | cut -c1-120)"'
+)
+
+
+def _lutris_start_script(db_path: Path) -> str:
+    rt = _runtime_dir(db_path)
+    return f"""#!/usr/bin/env bash
+{MARKER}
+# Comando PRÉ-LANÇAMENTO do Lutris (opções de Sistema → Comando pré-lançamento).
+# Variáveis do Lutris: GAME_NAME (ou game_name), STORE, GAME_DIRECTORY.
+set -euo pipefail
+RUNTIME_DIR="{rt}"
+LOG="$RUNTIME_DIR/tracker.log"
+mkdir -p "$RUNTIME_DIR"
+{_LOG_FN}
+NAME="${{GAME_NAME:-${{game_name:-}}}}"
+STORE="${{STORE:-}}"
+DIR="${{GAME_DIRECTORY:-}}"
+if [ -z "$NAME" ]; then log "ERRO: GAME_NAME ausente no pré-lançamento do Lutris"; exit 0; fi
+{_SAFE_NAME}
+RUNTIME="$RUNTIME_DIR/lutris_$SAFE"
+printf '%s\\n%s\\n%s\\n%s\\n' \\
+  "$(date +%Y-%m-%dT%H:%M:%S%z)" "$NAME" "$STORE" "$DIR" > "$RUNTIME"
+log "Sessão Lutris iniciada: $NAME [${{STORE:-lutris}}]"
+exit 0
+"""
+
+
+def _lutris_end_script(db_path: Path) -> str:
+    rt = _runtime_dir(db_path)
+    return f"""#!/usr/bin/env bash
+{MARKER}
+# Comando PÓS-SAÍDA do Lutris (opções de Sistema → Comando pós-saída).
+# Lê o início gravado pelo pré-lançamento e insere a sessão no banco do ES-DB.
+set -euo pipefail
+DB="{db_path}"
+RUNTIME_DIR="{rt}"
+LOG="$RUNTIME_DIR/tracker.log"
+EXPORT="$RUNTIME_DIR/export.sh"
+{_LOG_FN}
+NAME="${{GAME_NAME:-${{game_name:-}}}}"
+if [ -z "$NAME" ]; then exit 0; fi
+{_SAFE_NAME}
+RUNTIME="$RUNTIME_DIR/lutris_$SAFE"
+[ -f "$RUNTIME" ] || exit 0
+
+END="$(date +%Y-%m-%dT%H:%M:%S%z)"
+START="$(sed -n '1p' "$RUNTIME")"
+NAME="$(sed -n '2p' "$RUNTIME")"
+STORE="$(sed -n '3p' "$RUNTIME")"
+DIR="$(sed -n '4p' "$RUNTIME")"
+rm -f "$RUNTIME"
+[ -n "$START" ] && [ -n "$NAME" ] || exit 0
+
+S="$(date -d "$START" +%s 2>/dev/null || echo 0)"
+E="$(date -d "$END" +%s 2>/dev/null || echo 0)"
+DUR=$(( E - S ))
+[ "$DUR" -lt 0 ] && DUR=0
+
+SYSTEM="lutris"
+if [ -n "$STORE" ]; then PLATFORM="PC — $STORE"; else PLATFORM="PC (Lutris)"; fi
+
+esc() {{ printf "%s" "$1" | sed "s/'/''/g"; }}
+NAME_E="$(esc "$NAME")"
+PLATFORM_E="$(esc "$PLATFORM")"
+SYSTEM_E="$(esc "$SYSTEM")"
+DIR_E="$(esc "$DIR")"
+
+mkdir -p "$(dirname "$DB")"
+sqlite3 "$DB" <<SQL
+{_SCHEMA_SQL}
+INSERT INTO games(name, platform, system, rom) VALUES('$NAME_E','$PLATFORM_E','$SYSTEM_E','$DIR_E')
+  ON CONFLICT(name, platform) DO UPDATE SET system=excluded.system, rom=excluded.rom;
+INSERT INTO sessions(game_id, start_time, end_time, duration)
+  SELECT id, '$START', '$END', $DUR FROM games WHERE name='$NAME_E' AND platform='$PLATFORM_E';
+SQL
+log "Sessão Lutris encerrada: $NAME [$PLATFORM] (${{DUR}}s)"
+[ -x "$EXPORT" ] && "$EXPORT" >/dev/null 2>&1 || true
+exit 0
+"""
+
+
+def install_lutris_scripts(target_dir: str | Path, db_path: str | Path) -> list[Path]:
+    """Gera os scripts de pré-lançamento/pós-saída do Lutris em ``target_dir``,
+    apontando para ``db_path`` (o mesmo banco do ES-DE). Também grava o
+    ``export.sh`` na pasta de runtime do ES-DB. O usuário deve apontar, nas
+    opções de Sistema do Lutris, o Comando pré-lançamento e o Comando pós-saída
+    para os scripts gerados."""
+    target = Path(target_dir).expanduser()
+    db = Path(db_path).expanduser()
+    target.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for name, body in (("lutris-game-start.sh", _lutris_start_script(db)),
+                       ("lutris-game-end.sh", _lutris_end_script(db))):
+        path = target / name
+        path.write_text(body, encoding="utf-8")
+        _chmodx(path)
+        written.append(path)
+    rt = _runtime_dir(db)
+    rt.mkdir(parents=True, exist_ok=True)
+    export = rt / "export.sh"
+    export.write_text(_export_script(db), encoding="utf-8")
+    _chmodx(export)
+    return written
+
+
+def lutris_scripts_installed(target_dir: str | Path) -> bool:
+    target = Path(target_dir).expanduser()
+    for name in ("lutris-game-start.sh", "lutris-game-end.sh"):
+        f = target / name
+        try:
+            if f.is_file() and MARKER in f.read_text(encoding="utf-8", errors="ignore"):
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def remove_lutris_scripts(target_dir: str | Path) -> list[Path]:
+    """Remove apenas os scripts do Lutris gerados pelo ES-DB."""
+    target = Path(target_dir).expanduser()
+    removed: list[Path] = []
+    for name in ("lutris-game-start.sh", "lutris-game-end.sh"):
+        f = target / name
+        try:
+            if f.is_file() and MARKER in f.read_text(encoding="utf-8", errors="ignore"):
+                f.unlink()
+                removed.append(f)
+        except OSError:
+            continue
+    return removed
+
+
 def _chmodx(path: Path) -> None:
     path.chmod(path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 

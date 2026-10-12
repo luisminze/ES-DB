@@ -54,6 +54,9 @@ Depois, basta `chmod +x dist/ES-DB-x86_64.AppImage && ./dist/ES-DB-x86_64.AppIma
   binário `TROPUSR.DAT` com datas), **Xenia** (`.gpd`/XDBF) e **shadPS4** (definições).
 - **Gravação ES-DE**: criar banco de sessões e instalar/remover os hooks
   `game-start`/`game-end`.
+- **Gravação Lutris**: gera `lutris-game-start.sh`/`lutris-game-end.sh` (em
+  `~/ES-DB/lutris`) que gravam no mesmo banco; basta apontar, nas opções de
+  Sistema do Lutris, o “Comando pré-lançamento” e o “Comando pós-saída”.
 - **Sincronização incremental** por `sessions.id`, **filtros** (inclui gênero/
   desenvolvedora do ES-DE) com **predefinições** salvas, e página de **Integridade**.
 

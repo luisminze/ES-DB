@@ -173,6 +173,27 @@ O ES-DE passa quatro argumentos para `game-start` e `game-end`:
 5. Duração negativa é normalizada para zero; encerramentos sem runtime não geram
    sessão (coerente com [MAIN.md](MAIN.md) §4).
 
+### Gravação no Lutris
+
+O Lutris não tem pasta de eventos como o ES-DE: define-se, nas **opções de
+Sistema** (globais ou por jogo), um **Comando pré-lançamento** e um **Comando
+pós-saída**. O ES-DB gera, em `~/ES-DB/lutris`, dois scripts equivalentes aos
+hooks do ES-DE, gravando no **mesmo banco**:
+
+- `lutris-game-start.sh` — lê as variáveis que o Lutris expõe (`GAME_NAME`, com
+  fallback para `game_name`; `STORE`; `GAME_DIRECTORY`) e grava o início num
+  arquivo de runtime nomeado pelo jogo (`.gametracker/lutris_<nome>`), o que
+  evita colisão entre jogos simultâneos.
+- `lutris-game-end.sh` — lê o runtime, calcula a duração e faz o mesmo *upsert*
+  `(name, platform)`. O **sistema** fica `lutris` e a **plataforma** é
+  `PC — <loja>` (de `STORE`) ou `PC (Lutris)`; `GAME_DIRECTORY` vai no campo
+  `rom`. Como esses jogos não casam com `downloaded_media` do ES-DE, aparecem na
+  Biblioteca com placeholder — stats, sessões e filtros funcionam normalmente.
+
+O usuário aponta, no Lutris, o Comando pré-lançamento para `lutris-game-start.sh`
+e o Comando pós-saída para `lutris-game-end.sh`. Mesmo marcador de origem e mesma
+remoção seletiva dos scripts do ES-DE.
+
 ### Dependências e segurança
 
 - Os scripts dependem de `sqlite3` e `date` (GNU) no sistema; são `bash`.

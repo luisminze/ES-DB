@@ -4,8 +4,10 @@ import sqlite3
 
 import pytest
 
-from esdb.esde.writer import (MARKER, create_database, install_scripts,
-                              remove_scripts, scripts_installed)
+from esdb.esde.writer import (MARKER, create_database, install_lutris_scripts,
+                              install_scripts, lutris_scripts_installed,
+                              remove_lutris_scripts, remove_scripts,
+                              scripts_installed)
 
 
 def test_create_database_schema(tmp_path):
@@ -56,3 +58,46 @@ def test_start_script_escapes(tmp_path):
     install_scripts(scripts, db)
     start = (scripts / "game-start" / "esdb-tracker.sh").read_text()
     assert "%Y-%m-%dT%H:%M:%S%z" in start
+
+
+def test_install_and_remove_lutris_scripts(tmp_path):
+    target = tmp_path / "lutris"
+    db = tmp_path / "database" / "games.db"
+    written = install_lutris_scripts(target, db)
+    assert len(written) == 2
+    names = {p.name for p in written}
+    assert names == {"lutris-game-start.sh", "lutris-game-end.sh"}
+    assert lutris_scripts_installed(target)
+    end = (target / "lutris-game-end.sh").read_text()
+    assert MARKER in end and str(db) in end
+    assert "GAME_NAME" in end and "PC (Lutris)" in end
+    assert (target / "lutris-game-start.sh").stat().st_mode & 0o111
+    # export.sh também é gerado na pasta de runtime do banco
+    assert (db.parent / ".gametracker" / "export.sh").is_file()
+
+    removed = remove_lutris_scripts(target)
+    assert len(removed) == 2
+    assert not lutris_scripts_installed(target)
+
+
+def test_lutris_end_script_records_session(tmp_path):
+    """Simula um lançamento do Lutris (variáveis de ambiente) e verifica o banco."""
+    import os
+    import subprocess
+
+    target = tmp_path / "lutris"
+    db = tmp_path / "database" / "games.db"
+    start, end = install_lutris_scripts(target, db)
+    env = dict(os.environ, GAME_NAME="Hollow Knight", STORE="gog",
+               GAME_DIRECTORY="/games/hk")
+    subprocess.run(["bash", str(start)], env=env, check=True)
+    subprocess.run(["bash", str(end)], env=env, check=True)
+    conn = sqlite3.connect(str(db))
+    try:
+        game = conn.execute(
+            "SELECT name, platform, system FROM games").fetchone()
+        count = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+    finally:
+        conn.close()
+    assert game == ("Hollow Knight", "PC — gog", "lutris")
+    assert count == 1

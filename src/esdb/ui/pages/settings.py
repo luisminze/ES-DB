@@ -11,7 +11,9 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QFrame,
 from ...config import stats_home
 from ...data.source_adapter import GameSessionTrackerSqliteAdapter
 from ...esde.resolver import discover_session_databases, resolve_esde
-from ...esde.writer import (create_database, install_scripts, remove_scripts,
+from ...esde.writer import (create_database, install_lutris_scripts,
+                            install_scripts, lutris_scripts_installed,
+                            remove_lutris_scripts, remove_scripts,
                             scripts_installed)
 from ..widgets import section_title
 from .base import scroll_container
@@ -106,6 +108,28 @@ class SettingsPage(QWidget):
         self._scripts_status = QLabel()
         self._scripts_status.setObjectName("CardMeta")
         self._lay.addWidget(self._scripts_status)
+
+        self._lay.addWidget(section_title("Gravação no Lutris"))
+        self._lay.addWidget(QLabel(
+            "O Lutris registra pelo mesmo banco acima. Gere os scripts e, nas "
+            "opções de Sistema do Lutris (globais ou por jogo), aponte o "
+            "“Comando pré-lançamento” para lutris-game-start.sh e o “Comando "
+            "pós-saída” para lutris-game-end.sh."))
+        lutris_row = QHBoxLayout()
+        gen_lutris = QPushButton("Gerar scripts do Lutris")
+        gen_lutris.setObjectName("ChromeBtn")
+        gen_lutris.clicked.connect(self._install_lutris)
+        rm_lutris = QPushButton("Remover scripts do Lutris")
+        rm_lutris.setObjectName("ChromeBtn")
+        rm_lutris.clicked.connect(self._remove_lutris)
+        lutris_row.addWidget(gen_lutris)
+        lutris_row.addWidget(rm_lutris)
+        lutris_row.addStretch()
+        self._lay.addLayout(lutris_row)
+        self._lutris_status = QLabel()
+        self._lutris_status.setObjectName("CardMeta")
+        self._lutris_status.setWordWrap(True)
+        self._lay.addWidget(self._lutris_status)
 
         self._lay.addWidget(section_title("Conquistas"))
         self._ach_enabled = QCheckBox("Habilitar conquistas")
@@ -217,6 +241,32 @@ class SettingsPage(QWidget):
             return
         self._scripts_status.setText(f"✓ Sessões exportadas para {out}")
 
+    def _lutris_dir(self):
+        return stats_home() / "lutris"
+
+    def _install_lutris(self) -> None:
+        db = self._db_combo.currentText().strip()
+        if not db:
+            self._lutris_status.setText("✕ Selecione um banco de sessões.")
+            return
+        try:
+            written = install_lutris_scripts(self._lutris_dir(), db)
+        except OSError as exc:
+            self._lutris_status.setText(f"✕ Erro ao gerar: {exc}")
+            return
+        paths = "\n".join(f"• {p}" for p in written)
+        self._lutris_status.setText(
+            "✓ Scripts do Lutris gerados → banco "
+            f"{db}\n{paths}\n\nNo Lutris: opções de Sistema → “Comando "
+            "pré-lançamento” = lutris-game-start.sh; “Comando pós-saída” = "
+            "lutris-game-end.sh.")
+
+    def _remove_lutris(self) -> None:
+        removed = remove_lutris_scripts(self._lutris_dir())
+        self._lutris_status.setText(
+            f"✓ {len(removed)} script(s) do Lutris removidos."
+            if removed else "Nenhum script do Lutris encontrado.")
+
     def _remove_scripts(self) -> None:
         scripts = resolve_esde(self._esde_edit.text() or None).scripts
         removed = remove_scripts(scripts)
@@ -263,6 +313,11 @@ class SettingsPage(QWidget):
         self._scripts_status.setText(
             "✓ Scripts do ES-DB instalados." if installed
             else "Scripts do ES-DB não instalados.")
+        if not self._lutris_status.text():
+            self._lutris_status.setText(
+                "✓ Scripts do Lutris gerados em " f"{self._lutris_dir()}."
+                if lutris_scripts_installed(self._lutris_dir())
+                else "Scripts do Lutris não gerados.")
 
     def _save(self) -> None:
         from dataclasses import replace
