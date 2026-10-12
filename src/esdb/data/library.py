@@ -85,6 +85,7 @@ class Library:
 
     def _build_games(self, src_games: dict[int, object]) -> None:
         overrides = self.store.get_overrides(self.session_db)
+        hidden = self.store.hidden_games(self.session_db)
         agg: dict[int, dict] = {}
         for s in self.sessions:
             a = agg.setdefault(s.game_id, {"secs": 0, "count": 0,
@@ -100,6 +101,8 @@ class Library:
 
         games: list[Game] = []
         for gid, src in src_games.items():
+            if gid in hidden:
+                continue
             base = rom_basename(src.rom)  # type: ignore[attr-defined]
             system = src.system  # type: ignore[attr-defined]
             cover = self._media.cover_for(system, base)
@@ -129,6 +132,11 @@ class Library:
     # --------------------------------------------------------------- queries
     def metrics(self, period: Period) -> Metrics:
         return compute_metrics(self.sessions, self.games_by_id, period, self.tz)
+
+    def hide_game(self, game_id: int) -> None:
+        """Remove um jogo da biblioteca (oculta; as sessões permanecem na fonte)."""
+        self.store.set_hidden(self.session_db, game_id, True)
+        self._build_games({g.id: g for g in self.store.load_games(self.session_db)})
 
     def sessions_for_game(self, game_id: int) -> list[Session]:
         rows = [s for s in self.sessions if s.game_id == game_id]

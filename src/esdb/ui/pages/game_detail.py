@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QGridLayout, QHBoxLayout, QLabel,
-                               QScrollArea, QTableWidget, QTableWidgetItem,
-                               QVBoxLayout, QWidget)
+                               QMessageBox, QPushButton, QScrollArea,
+                               QTableWidget, QTableWidgetItem, QVBoxLayout,
+                               QWidget)
 
 from ...domain.calculations import format_duration
 from ...domain.models import Game
@@ -15,6 +16,8 @@ from ..widgets import cover_fit_label, cover_label, section_title, stat_tile
 class GameDetailDialog(QDialog):
     def __init__(self, app, game: Game) -> None:
         super().__init__(app.window)
+        self._app = app
+        self._game = game
         self.setWindowTitle(game.display_title)
         self.resize(760, 680)
         self.setObjectName("Panel")
@@ -30,10 +33,17 @@ class GameDetailDialog(QDialog):
         head.addWidget(cover_fit_label(game.cover_path, game.display_title, 140),
                        0, Qt.AlignTop)
         info = QVBoxLayout()
+        title_row = QHBoxLayout()
         title = QLabel(game.display_title)
         title.setObjectName("PageTitle")
         title.setWordWrap(True)
-        info.addWidget(title)
+        title_row.addWidget(title, 1)
+        remove_btn = QPushButton("Remover")
+        remove_btn.setObjectName("ChromeBtn")
+        remove_btn.setToolTip("Remove o jogo da biblioteca (as sessões são mantidas)")
+        remove_btn.clicked.connect(self._remove)
+        title_row.addWidget(remove_btn, 0, Qt.AlignTop)
+        info.addLayout(title_row)
         plat = QLabel(f"{game.platform}  ·  {game.system}")
         plat.setObjectName("PageSubtitle")
         info.addWidget(plat)
@@ -101,3 +111,16 @@ class GameDetailDialog(QDialog):
             holder = QWidget()
             holder.setLayout(strip)
             root.addWidget(holder)
+
+    def _remove(self) -> None:
+        resp = QMessageBox.question(
+            self, "Remover jogo",
+            f"Remover “{self._game.display_title}” da biblioteca?\n\n"
+            "O jogo deixa de aparecer; as sessões gravadas são mantidas na fonte "
+            "e ele reaparece se voltar a ser jogado.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if resp != QMessageBox.Yes:
+            return
+        self._app.library.hide_game(self._game.external_id)
+        self._app.refresh_pages()
+        self.accept()

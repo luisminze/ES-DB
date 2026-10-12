@@ -137,6 +137,23 @@ def build_qss(p: dict[str, str]) -> str:
     QPushButton#NavGhost:hover {{ color: {p['text']}; }}
     QPushButton#NavGhost:checked {{ color: {p['text']}; font-weight: 700; }}
 
+    #SidePanel {{
+        background: {p['panel_surface']}; border: 1px solid {p['border']};
+        border-radius: 12px;
+    }}
+    #SideTitle {{ color: {p['text_dim']}; font-size: 11px; font-weight: 700;
+        letter-spacing: 1px; padding: 2px 4px; }}
+    QPushButton#SideItem {{
+        text-align: left; background: transparent; border: none;
+        border-radius: 8px; padding: 7px 10px; color: {p['text_dim']};
+        font-size: 13px;
+    }}
+    QPushButton#SideItem:hover {{ background: {p['panel_surface_2']}; color: {p['text']}; }}
+    QPushButton#SideItem:checked {{
+        background: {p['select']}; color: white; font-weight: 700;
+    }}
+    #GroupHeader {{ font-size: 15px; font-weight: 800; color: {p['text']}; }}
+
     #Panel {{ background: {p['panel_bg']}; border-radius: 16px; }}
     #PageTitle {{ font-size: 24px; font-weight: 800; color: {p['text']}; }}
     #PageSubtitle {{ color: {p['text_dim']}; font-size: 13px; }}

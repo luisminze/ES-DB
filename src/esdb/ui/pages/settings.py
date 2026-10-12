@@ -26,7 +26,24 @@ class SettingsPage(QWidget):
         self._area, self._content, self._lay = scroll_container()
         outer.addWidget(self._area)
 
-        self._lay.addWidget(section_title("Diretório do ES-DE"))
+        self._lay.addWidget(section_title("Aparência"))
+        theme_row = QHBoxLayout()
+        theme_row.addWidget(QLabel("Tema:"))
+        self._theme = QComboBox()
+        for label, value in (("Claro", "light"), ("Escuro", "dark"),
+                             ("Sistema", "system")):
+            self._theme.addItem(label, value)
+        idx = self._theme.findData(app.config.theme)
+        self._theme.setCurrentIndex(idx if idx >= 0 else 1)
+        hint_sys = QLabel("(Sistema segue o tema do seu SO automaticamente)")
+        hint_sys.setObjectName("CardMeta")
+        theme_row.addWidget(self._theme)
+        theme_row.addWidget(hint_sys)
+        theme_row.addStretch()
+        self._lay.addLayout(theme_row)
+
+        self._lay.addWidget(section_title("Diretórios"))
+        self._lay.addWidget(QLabel("Diretório do ES-DE"))
         self._lay.addWidget(QLabel(
             "Informe a pasta de configuração do ES-DE. O ES-DB descobre scripts, "
             "imagens, metadados e o banco de sessões automaticamente."))
@@ -42,7 +59,7 @@ class SettingsPage(QWidget):
         self._status.setObjectName("CardMeta")
         self._lay.addWidget(self._status)
 
-        self._lay.addWidget(section_title("Banco de sessões"))
+        self._lay.addWidget(QLabel("Banco de sessões"))
         db_row = QHBoxLayout()
         self._db_combo = QComboBox()
         self._db_combo.setEditable(True)
@@ -129,22 +146,6 @@ class SettingsPage(QWidget):
             self._emu_edits[attr] = edit
         self._emu_box.setVisible(app.config.achievements_enabled)
         self._lay.addWidget(self._emu_box)
-
-        self._lay.addWidget(section_title("Aparência"))
-        theme_row = QHBoxLayout()
-        theme_row.addWidget(QLabel("Tema:"))
-        self._theme = QComboBox()
-        for label, value in (("Claro", "light"), ("Escuro", "dark"),
-                             ("Sistema", "system")):
-            self._theme.addItem(label, value)
-        idx = self._theme.findData(app.config.theme)
-        self._theme.setCurrentIndex(idx if idx >= 0 else 1)
-        hint_sys = QLabel("(Sistema segue o tema do seu SO automaticamente)")
-        hint_sys.setObjectName("CardMeta")
-        theme_row.addWidget(self._theme)
-        theme_row.addWidget(hint_sys)
-        theme_row.addStretch()
-        self._lay.addLayout(theme_row)
 
         save = QPushButton("Salvar e recarregar")
         save.setObjectName("ChromeBtn")

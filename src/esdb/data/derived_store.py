@@ -172,6 +172,22 @@ class DerivedStore:
                                r["duration"], kind))
         return out
 
+    # ------------------------------------------------------ hidden games
+    def hidden_games(self, source_path: str) -> set[int]:
+        data = self.get_setting("hidden_games", {}) or {}
+        return set(data.get(source_path, []))
+
+    def set_hidden(self, source_path: str, external_id: int,
+                   hidden: bool = True) -> None:
+        data = self.get_setting("hidden_games", {}) or {}
+        ids = set(data.get(source_path, []))
+        if hidden:
+            ids.add(external_id)
+        else:
+            ids.discard(external_id)
+        data[source_path] = sorted(ids)
+        self.set_setting("hidden_games", data)
+
     # -------------------------------------------------------- overrides
     def get_overrides(self, source_path: str) -> dict[int, dict]:
         rows = self._conn.execute(
