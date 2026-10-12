@@ -100,6 +100,52 @@ def clear_all_data(db_path: str | Path) -> bool:
     return True
 
 
+def sync_lutris_rows(db_path: str | Path, data_dir: str | Path | None = None) -> int:
+    """Normaliza as linhas de jogos do Lutris no banco de sessões para a
+    plataforma **exata** do ``pga.db`` (ex.: ``PC (Lutris)`` → ``Sony
+    PlayStation``), evitando duplicatas quando o script passa a gravar a
+    plataforma exata. Idempotente: não faz nada se já estiver correto ou se o
+    ``pga.db`` não existir. Retorna quantas linhas foram ajustadas."""
+    from .lutris import LutrisIndex
+
+    target = Path(db_path).expanduser()
+    if not target.is_file():
+        return 0
+    idx = LutrisIndex(data_dir)
+    if not idx.available:
+        return 0
+    conn = sqlite3.connect(str(target))
+    changed = 0
+    try:
+        rows = conn.execute(
+            "SELECT id, name, platform, system FROM games "
+            "WHERE system LIKE 'lutris%'").fetchall()
+        for gid, name, platform, system in rows:
+            exact = idx.platform_for(name)
+            tag = idx.system_tag_for(name)
+            if not exact or (platform == exact and system == tag):
+                continue
+            other = conn.execute(
+                "SELECT id FROM games WHERE name=? AND platform=? AND id<>?",
+                (name, exact, gid)).fetchone()
+            if other:  # já existe a linha exata: funde as sessões e remove esta
+                conn.execute("UPDATE sessions SET game_id=? WHERE game_id=?",
+                             (other[0], gid))
+                conn.execute("DELETE FROM games WHERE id=?", (gid,))
+                conn.execute("UPDATE games SET system=? WHERE id=?",
+                             (tag, other[0]))
+            else:
+                conn.execute("UPDATE games SET platform=?, system=? WHERE id=?",
+                             (exact, tag, gid))
+            changed += 1
+        conn.commit()
+    except sqlite3.OperationalError:
+        return 0
+    finally:
+        conn.close()
+    return changed
+
+
 def _runtime_dir(db_path: Path) -> Path:
     return db_path.parent / ".gametracker"
 

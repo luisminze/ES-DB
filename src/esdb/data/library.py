@@ -53,6 +53,12 @@ class Library:
             return result
 
         src_path = self.session_db
+        # Normaliza jogos do Lutris para a plataforma exata (pga.db). Se algo
+        # mudou (inclui fusões de linhas), reimporta do zero para manter o
+        # banco derivado consistente.
+        from ..esde.writer import sync_lutris_rows
+        if sync_lutris_rows(src_path):
+            self.store.reset_source(src_path)
         # Importação incremental por sessions.id (idempotente).
         cursor = self.store.get_cursor(src_path)
         new_src = adapter.list_sessions_after(cursor)
@@ -84,8 +90,10 @@ class Library:
                                                  "Sessão sinalizada para revisão"))
 
     def _build_games(self, src_games: dict[int, object]) -> None:
+        from ..esde.lutris import LutrisIndex, friendly_platform
         overrides = self.store.get_overrides(self.session_db)
         hidden = self.store.hidden_games(self.session_db)
+        lutris = LutrisIndex()
         agg: dict[int, dict] = {}
         for s in self.sessions:
             a = agg.setdefault(s.game_id, {"secs": 0, "count": 0,
@@ -112,8 +120,9 @@ class Library:
             cover_path = ov.get("cover") or (str(cover) if cover else None)
             platform = src.platform  # type: ignore[attr-defined]
             if system and str(system).startswith("lutris"):
-                from ..esde.lutris import friendly_platform
-                platform = friendly_platform(system, platform)
+                # pga.db é autoritativo (por nome); senão, traduz o tag do system.
+                platform = (lutris.platform_for(src.name)  # type: ignore[attr-defined]
+                            or friendly_platform(system, platform))
             games.append(Game(
                 external_id=gid,
                 name=ov.get("title") or src.name,  # type: ignore[attr-defined]

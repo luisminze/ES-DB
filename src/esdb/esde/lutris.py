@@ -8,6 +8,10 @@ mapas abaixo como complemento. Tudo offline e somente leitura.
 
 from __future__ import annotations
 
+import os
+import sqlite3
+from pathlib import Path
+
 # Runner do Lutris → plataforma legível (emuladores dedicados e nativos).
 RUNNER_PLATFORM: dict[str, str] = {
     "wine": "Windows", "linux": "Linux", "steam": "Steam",
@@ -79,3 +83,83 @@ def friendly_platform(system: str | None, fallback: str) -> str:
     if not tag:
         return fallback or "PC (Lutris)"
     return CORE_PLATFORM.get(tag) or RUNNER_PLATFORM.get(tag) or fallback or "PC (Lutris)"
+
+
+def default_data_dir() -> Path:
+    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return Path(base) / "lutris"
+
+
+class LutrisIndex:
+    """Índice somente leitura do ``pga.db`` do Lutris, por nome de jogo.
+
+    É a **fonte autoritativa** da plataforma: resolve pela coluna ``platform``
+    quando preenchida, senão pelo core libretro (lido do ``.yml``) ou pelo runner.
+    Se o ``pga.db`` não existir, o índice fica vazio e tudo recai nos rótulos já
+    gravados.
+    """
+
+    def __init__(self, data_dir: str | Path | None = None) -> None:
+        self._base = Path(data_dir) if data_dir else default_data_dir()
+        self._by_name: dict[str, sqlite3.Row] = {}
+        pga = self._base / "pga.db"
+        if not pga.is_file():
+            return
+        try:
+            conn = sqlite3.connect(f"file:{pga}?mode=ro", uri=True)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT name, platform, runner, configpath, "
+                "COALESCE(installed,0) AS installed, "
+                "COALESCE(lastplayed,0) AS lastplayed FROM games").fetchall()
+            conn.close()
+        except sqlite3.Error:
+            return
+        # Em nomes repetidos, o jogo instalado/mais recente prevalece.
+        for r in sorted(rows, key=lambda r: (r["installed"], r["lastplayed"])):
+            if r["name"]:
+                self._by_name[r["name"]] = r
+
+    @property
+    def available(self) -> bool:
+        return bool(self._by_name)
+
+    def _core(self, configpath: str | None) -> str:
+        if not configpath:
+            return ""
+        yml = self._base / "games" / f"{configpath}.yml"
+        try:
+            for line in yml.read_text(encoding="utf-8", errors="ignore").splitlines():
+                s = line.strip()
+                if s.startswith("core:"):
+                    return s.split(":", 1)[1].strip()
+        except OSError:
+            pass
+        return ""
+
+    def platform_for(self, name: str) -> str | None:
+        """Plataforma exata do jogo (ou ``None`` se não constar no Lutris)."""
+        r = self._by_name.get(name)
+        if r is None:
+            return None
+        plat = (r["platform"] or "").strip()
+        if plat:
+            return plat
+        runner = (r["runner"] or "").strip()
+        if runner == "libretro":
+            core = self._core(r["configpath"])
+            if core in CORE_PLATFORM:
+                return CORE_PLATFORM[core]
+        return RUNNER_PLATFORM.get(runner)
+
+    def system_tag_for(self, name: str) -> str | None:
+        """Tag ``lutris:<core|runner>`` — igual ao que o script grava."""
+        r = self._by_name.get(name)
+        if r is None:
+            return None
+        runner = (r["runner"] or "").strip()
+        if runner == "libretro":
+            core = self._core(r["configpath"])
+            if core:
+                return f"lutris:{core}"
+        return f"lutris:{runner}" if runner else "lutris"

@@ -5,8 +5,9 @@ import sqlite3
 import subprocess
 from pathlib import Path
 
-from esdb.esde.lutris import friendly_platform
-from esdb.esde.writer import install_lutris_scripts
+from esdb.esde.lutris import LutrisIndex, friendly_platform
+from esdb.esde.writer import (create_database, install_lutris_scripts,
+                              sync_lutris_rows)
 
 
 def test_friendly_platform_core_and_runner():
@@ -34,10 +35,60 @@ def _fake_lutris(xdg: Path) -> None:
                  "lastplayed INTEGER)")
     conn.execute("INSERT INTO games VALUES(1,'Zero Hour','','libretro','z',1,1)")
     conn.execute("INSERT INTO games VALUES(2,'Forza','Windows','wine','',1,2)")
+    conn.execute("INSERT INTO games VALUES(3,'RE3','Sony PlayStation','duckstation','',1,3)")
     conn.commit()
     conn.close()
     (ldir / "games" / "z.yml").write_text(
         "game:\n  core: mupen64plus_next\nrunner: libretro\n")
+
+
+def test_index_system_tag(tmp_path):
+    _fake_lutris(tmp_path)
+    idx = LutrisIndex(tmp_path / "lutris")
+    assert idx.system_tag_for("Zero Hour") == "lutris:mupen64plus_next"
+    assert idx.system_tag_for("RE3") == "lutris:duckstation"
+    assert idx.platform_for("RE3") == "Sony PlayStation"
+
+
+def test_sync_lutris_rows_fixes_generic_platform(tmp_path):
+    _fake_lutris(tmp_path)
+    db = create_database(tmp_path / "games.db")
+    conn = sqlite3.connect(str(db))
+    conn.execute("INSERT INTO games(id,name,platform,system) "
+                 "VALUES(10,'RE3','PC (Lutris)','lutris')")
+    conn.execute("INSERT INTO sessions(game_id,start_time,end_time,duration) "
+                 "VALUES(10,'a','b',60)")
+    conn.commit()
+    conn.close()
+    n = sync_lutris_rows(db, tmp_path / "lutris")
+    assert n == 1
+    conn = sqlite3.connect(str(db))
+    row = conn.execute("SELECT platform, system FROM games WHERE id=10").fetchone()
+    conn.close()
+    assert row == ("Sony PlayStation", "lutris:duckstation")
+    # idempotente: segunda passada não muda nada
+    assert sync_lutris_rows(db, tmp_path / "lutris") == 0
+
+
+def test_sync_lutris_rows_merges_duplicates(tmp_path):
+    _fake_lutris(tmp_path)
+    db = create_database(tmp_path / "games.db")
+    conn = sqlite3.connect(str(db))
+    # linha antiga genérica + linha exata já existente, mesmo nome
+    conn.execute("INSERT INTO games(id,name,platform,system) "
+                 "VALUES(10,'RE3','PC (Lutris)','lutris')")
+    conn.execute("INSERT INTO games(id,name,platform,system) "
+                 "VALUES(11,'RE3','Sony PlayStation','lutris:duckstation')")
+    conn.execute("INSERT INTO sessions(game_id,start_time,end_time,duration) "
+                 "VALUES(10,'a','b',60),(11,'c','d',30)")
+    conn.commit()
+    conn.close()
+    assert sync_lutris_rows(db, tmp_path / "lutris") == 1
+    conn = sqlite3.connect(str(db))
+    games = conn.execute("SELECT COUNT(*) FROM games WHERE name='RE3'").fetchone()[0]
+    sess = conn.execute("SELECT COUNT(*) FROM sessions WHERE game_id=11").fetchone()[0]
+    conn.close()
+    assert games == 1 and sess == 2  # as duas sessões ficam no jogo exato
 
 
 def test_end_script_extracts_platform_from_pga(tmp_path):
