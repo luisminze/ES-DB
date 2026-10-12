@@ -20,6 +20,7 @@ DARK = {
     "accent": "#EB5E54",
     "accent_dim": "#8E2F28",
     "accent_wash": "#221015",       # fundo de cards com leve tom de acento
+    "select": "#3A414E",            # cor de seleção (cinza escuro)
 }
 
 # Tema claro unificado: tudo claro; separadores usam um branco levemente mais
@@ -37,6 +38,7 @@ LIGHT = {
     "accent": "#C62C22",
     "accent_dim": "#EBB9B3",
     "accent_wash": "#FBECEA",
+    "select": "#3E4654",            # cor de seleção (cinza escuro)
 }
 
 _ACTIVE: dict[str, str] = DARK
@@ -98,7 +100,7 @@ def build_qss(p: dict[str, str]) -> str:
     #SearchBox {{
         background: {p['chrome_bg']}; border: 1px solid {p['border']};
         border-radius: 16px; padding: 7px 14px; color: {p['text']};
-        selection-background-color: {p['accent']};
+        selection-background-color: {p['select']}; selection-color: white;
     }}
     #SearchBox:focus {{ border: 1px solid {p['accent']}; }}
 
@@ -126,14 +128,14 @@ def build_qss(p: dict[str, str]) -> str:
     }}
     QPushButton#NavPill:hover {{ background: {p['panel_surface_2']}; color: {p['text']}; }}
     QPushButton#NavPill:checked {{
-        background: {p['accent']}; color: white; font-weight: 700;
+        background: {p['select']}; color: white; font-weight: 700;
     }}
     QPushButton#NavGhost {{
         text-align: center; background: transparent; border: none;
         border-radius: 9px; padding: 7px 12px; margin: 0 2px; color: {p['text_faint']};
     }}
     QPushButton#NavGhost:hover {{ color: {p['text']}; }}
-    QPushButton#NavGhost:checked {{ color: {p['accent']}; font-weight: 700; }}
+    QPushButton#NavGhost:checked {{ color: {p['text']}; font-weight: 700; }}
 
     #Panel {{ background: {p['panel_bg']}; border-radius: 16px; }}
     #PageTitle {{ font-size: 24px; font-weight: 800; color: {p['text']}; }}
@@ -153,8 +155,8 @@ def build_qss(p: dict[str, str]) -> str:
     }}
     QComboBox QAbstractItemView {{
         background: {p['panel_surface']}; border: 1px solid {p['border']};
-        border-radius: 8px; selection-background-color: {p['accent']};
-        outline: none; padding: 4px;
+        border-radius: 8px; selection-background-color: {p['select']};
+        selection-color: white; outline: none; padding: 4px;
     }}
 
     #Tile {{
@@ -226,7 +228,7 @@ def build_qss(p: dict[str, str]) -> str:
     QTableWidget {{
         background: {p['panel_surface']}; border: 1px solid {p['border']};
         border-radius: 12px; gridline-color: {p['border']};
-        selection-background-color: {p['accent_dim']};
+        selection-background-color: {p['select']}; selection-color: white;
     }}
     QHeaderView::section {{
         background: {p['panel_surface_2']}; color: {p['text_dim']};
@@ -252,7 +254,7 @@ def build_qss(p: dict[str, str]) -> str:
     QLineEdit {{
         background: {p['panel_surface']}; color: {p['text']};
         border: 1px solid {p['border']}; border-radius: 8px; padding: 6px 10px;
-        selection-background-color: {p['accent']};
+        selection-background-color: {p['select']}; selection-color: white;
     }}
     QLineEdit:focus {{ border-color: {p['accent']}; }}
     """
