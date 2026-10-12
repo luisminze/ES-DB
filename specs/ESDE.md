@@ -184,11 +184,20 @@ hooks do ES-DE, gravando no **mesmo banco**:
   fallback para `game_name`; `STORE`; `GAME_DIRECTORY`) e grava o início num
   arquivo de runtime nomeado pelo jogo (`.gametracker/lutris_<nome>`), o que
   evita colisão entre jogos simultâneos.
-- `lutris-game-end.sh` — lê o runtime, calcula a duração e faz o mesmo *upsert*
-  `(name, platform)`. O **sistema** fica `lutris` e a **plataforma** é
-  `PC — <loja>` (de `STORE`) ou `PC (Lutris)`; `GAME_DIRECTORY` vai no campo
-  `rom`. Como esses jogos não casam com `downloaded_media` do ES-DE, aparecem na
-  Biblioteca com placeholder — stats, sessões e filtros funcionam normalmente.
+- `lutris-game-end.sh` — lê o runtime, calcula a duração e faz o *upsert*
+  `(name, platform)`. `GAME_DIRECTORY` vai no campo `rom`. Como esses jogos não
+  casam com `downloaded_media` do ES-DE, aparecem na Biblioteca com placeholder —
+  stats, sessões e filtros funcionam normalmente.
+
+**Plataforma exata.** O `game-end` consulta o banco do Lutris
+(`$XDG_DATA_HOME/lutris/pga.db`, somente leitura) pela mesma `GAME_NAME` e lê:
+`platform` (plataforma legível do Lutris, ex.: *Windows*, *Sony PlayStation*),
+`runner` (ex.: `duckstation`, `wine`) e, para libretro, o `core` do `.yml` do
+jogo. Grava `system = lutris:<core|runner>` e `platform` = a plataforma do Lutris
+(quando houver), senão `PC — <loja>`/`PC (Lutris)`. Na leitura, o app traduz o
+`system` para o nome amigável via `esde/lutris.py` (mapas core→plataforma e
+runner→plataforma): `mupen64plus_next` → Nintendo 64, `wine` → Windows, etc. Se
+o `pga.db` não existir, mantém o rótulo genérico.
 
 O usuário aponta, no Lutris, o Comando pré-lançamento para `lutris-game-start.sh`
 e o Comando pós-saída para `lutris-game-end.sh`. Mesmo marcador de origem e mesma

@@ -325,10 +325,38 @@ E="$(date -d "$END" +%s 2>/dev/null || echo 0)"
 DUR=$(( E - S ))
 [ "$DUR" -lt 0 ] && DUR=0
 
-SYSTEM="lutris"
-if [ -n "$STORE" ]; then PLATFORM="PC — $STORE"; else PLATFORM="PC (Lutris)"; fi
-
 esc() {{ printf "%s" "$1" | sed "s/'/''/g"; }}
+
+# Plataforma exata: consulta o banco do Lutris (pga.db) pela mesma NAME.
+#   platform  → já é a plataforma legível quando preenchida (ex.: Windows).
+#   runner    → emulador/execução (ex.: duckstation, wine).
+#   configpath→ nome do .yml com o core libretro.
+LUTRIS_DATA="${{XDG_DATA_HOME:-$HOME/.local/share}}/lutris"
+PGA="$LUTRIS_DATA/pga.db"
+LPLATFORM=""; LRUNNER=""; LCFG=""; LCORE=""
+if [ -f "$PGA" ] && command -v sqlite3 >/dev/null 2>&1; then
+  NAME_Q="$(esc "$NAME")"
+  ROW="$(sqlite3 -separator '|' "file:$PGA?mode=ro" \\
+    "SELECT COALESCE(platform,''), COALESCE(runner,''), COALESCE(configpath,'') \\
+     FROM games WHERE name='$NAME_Q' ORDER BY installed DESC, lastplayed DESC LIMIT 1;" \\
+    2>/dev/null || true)"
+  LPLATFORM="${{ROW%%|*}}"; REST="${{ROW#*|}}"; LRUNNER="${{REST%%|*}}"; LCFG="${{REST##*|}}"
+  if [ "$LRUNNER" = "libretro" ] && [ -n "$LCFG" ] && [ -f "$LUTRIS_DATA/games/$LCFG.yml" ]; then
+    LCORE="$(sed -n 's/^[[:space:]]*core:[[:space:]]*//p' "$LUTRIS_DATA/games/$LCFG.yml" \\
+             | head -1 | tr -d '\\r')"
+  fi
+fi
+
+# SYSTEM carrega o core (libretro) ou o runner, com marcador lutris: o app
+# traduz para o nome de plataforma amigável. PLATFORM guarda o melhor rótulo já
+# disponível (plataforma do Lutris, loja, ou genérico) para uso standalone.
+if [ -n "$LCORE" ]; then SYSTEM="lutris:$LCORE"
+elif [ -n "$LRUNNER" ]; then SYSTEM="lutris:$LRUNNER"
+else SYSTEM="lutris"; fi
+if [ -n "$LPLATFORM" ]; then PLATFORM="$LPLATFORM"
+elif [ -n "$STORE" ]; then PLATFORM="PC — $STORE"
+else PLATFORM="PC (Lutris)"; fi
+
 NAME_E="$(esc "$NAME")"
 PLATFORM_E="$(esc "$PLATFORM")"
 SYSTEM_E="$(esc "$SYSTEM")"

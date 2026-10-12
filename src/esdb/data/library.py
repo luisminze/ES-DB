@@ -110,10 +110,14 @@ class Library:
             a = agg.get(gid, {})
             ov = overrides.get(gid, {})
             cover_path = ov.get("cover") or (str(cover) if cover else None)
+            platform = src.platform  # type: ignore[attr-defined]
+            if system and str(system).startswith("lutris"):
+                from ..esde.lutris import friendly_platform
+                platform = friendly_platform(system, platform)
             games.append(Game(
                 external_id=gid,
                 name=ov.get("title") or src.name,  # type: ignore[attr-defined]
-                platform=src.platform,  # type: ignore[attr-defined]
+                platform=platform,
                 system=system,
                 rom_raw=src.rom,  # type: ignore[attr-defined]
                 rom_basename=base,
