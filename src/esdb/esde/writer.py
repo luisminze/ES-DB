@@ -519,20 +519,22 @@ def remove_lutris_scripts(target_dir: str | Path) -> list[Path]:
 
 
 # ---------------------------------------------------------------- Heroic
-# Os scripts "antes/depois" do Heroic rodam no processo do Heroic (cwd = $HOME,
-# sem variáveis), então não identificam o jogo. O **wrapper** roda no ambiente do
-# jogo e recebe HEROIC_APP_NAME/_RUNNER/_SOURCE — identificação confiável. O
-# wrapper executa o jogo ("$@"), espera e grava a sessão ao fim.
+# O wrapper do Heroic roda no ambiente do jogo e recebe o COMANDO do jogo em
+# "$@" (inclui o caminho do executável). Nem sempre há HEROIC_APP_NAME, então
+# identifica-se o jogo pelo executável/pasta presente no comando, cruzando com as
+# bibliotecas do Heroic. Imprime "TITULO\tLOJA".
 _HEROIC_PY_RESOLVER = r'''
 import json, sys
 from pathlib import Path
-app = sys.argv[1] if len(sys.argv) > 1 else ""
-base = Path(sys.argv[2]) if len(sys.argv) > 2 else None
-source = (sys.argv[3] if len(sys.argv) > 3 else "").lower()
-runner = (sys.argv[4] if len(sys.argv) > 4 else "").lower()
+args = sys.argv[1:]
+base = Path(args[0]) if len(args) > 0 and args[0] else None
+app = args[1] if len(args) > 1 else ""
+source = (args[2] if len(args) > 2 else "").lower()
+runner = (args[3] if len(args) > 3 else "").lower()
+cmd = args[4:]
 RS = {"legendary": "epic", "gog": "gog", "nile": "amazon"}
 SRC = {"epic": "epic", "gog": "gog", "amazon": "amazon", "nile": "amazon"}
-def games(p):
+def load(p):
     try:
         d = json.load(open(p))
     except Exception:
@@ -542,29 +544,55 @@ def games(p):
             if isinstance(d.get(k), list):
                 return [g for g in d[k] if isinstance(g, dict)]
     return []
+entries = []
+if base:
+    for name in ("store_cache/legendary_library.json", "store_cache/gog_library.json",
+                 "store_cache/nile_library.json", "sideload_apps/library.json"):
+        entries += load(base / name)
+def store_for(g):
+    st = RS.get(g.get("runner", ""), "") or RS.get(runner, "") or SRC.get(source, "")
+    if not st:
+        pl = ((g.get("install") or {}).get("platform") or "Windows").lower()
+        st = "linux" if "linux" in pl else "windows"
+    return st
 title = ""
-store = RS.get(runner, "") or SRC.get(source, "")
-if base and app:
-    libs = [base / "store_cache" / "legendary_library.json",
-            base / "store_cache" / "gog_library.json",
-            base / "store_cache" / "nile_library.json",
-            base / "sideload_apps" / "library.json"]
-    for lib in libs:
-        for g in games(lib):
-            if g.get("app_name") != app:
-                continue
-            title = g.get("title") or ""
-            st = RS.get(g.get("runner", ""), "")
-            if not st:
-                pl = ((g.get("install") or {}).get("platform") or "Windows").lower()
-                st = "linux" if "linux" in pl else "windows"
-            store = store or st
+store = ""
+# 1) por HEROIC_APP_NAME (quando presente)
+if app:
+    for g in entries:
+        if g.get("app_name") == app:
+            title, store = g.get("title") or "", store_for(g)
             break
-        if title:
+# 2) pelo executável/pasta presente no comando do jogo (normaliza paths do
+#    Windows: barras invertidas, e compara também pelo nome do executável)
+if not title and cmd:
+    norm = []
+    for a in cmd:
+        s = str(a).replace("\\", "/").rstrip("/")
+        if "/" in s or s.lower().endswith(".exe"):
+            norm.append(s)
+    best = None
+    for g in entries:
+        ins = g.get("install") or {}
+        exe = ins.get("executable")
+        paths = [p for p in (exe, ins.get("install_path"), g.get("folder_name")) if p]
+        paths = [str(p).replace("\\", "/").rstrip("/") for p in paths]
+        exe_base = Path(str(exe).replace("\\", "/")).name.lower() if exe else ""
+        for a in norm:
+            ab = Path(a).name.lower()
+            for p in paths:
+                if a == p or a.startswith(p + "/") or p.startswith(a + "/"):
+                    best = g
+                    break
+            if best or (exe_base and ab == exe_base):
+                best = g
+                break
+        if best:
             break
-if not store:
-    store = "windows"
-sys.stdout.write((title or app) + "\t" + store)
+    if best:
+        title, store = best.get("title") or "", store_for(best)
+if title:
+    sys.stdout.write(title + "\t" + (store or "windows"))
 '''
 
 
@@ -572,9 +600,9 @@ def _heroic_wrapper_script(db_path: Path) -> str:
     rt = _runtime_dir(db_path)
     return f"""#!/usr/bin/env bash
 {MARKER}
-# Heroic WRAPPER (Configurações → Avançado → Wrapper, global ou por jogo).
-# Recebe o comando do jogo em "$@" e as variáveis HEROIC_APP_NAME/_RUNNER/_SOURCE
-# no ambiente do jogo. Executa o jogo, espera e grava a sessão ao final.
+# Heroic WRAPPER (Configurações → Avançado → Empacotador, global ou por jogo).
+# Recebe o comando do jogo em "$@" (inclui o caminho do executável). Identifica o
+# jogo pelas bibliotecas do Heroic, executa o jogo, espera e grava a sessão.
 set -uo pipefail
 DB="{db_path}"
 RUNTIME_DIR="{rt}"
@@ -589,7 +617,7 @@ SOURCE="${{HEROIC_APP_SOURCE:-}}"
 RUNNER="${{HEROIC_APP_RUNNER:-}}"
 INFO=""
 if command -v python3 >/dev/null 2>&1; then
-  INFO="$(python3 -I - "$APP" "$HEROIC_DIR" "$SOURCE" "$RUNNER" <<'HEROICPY'
+  INFO="$(python3 -I - "$HEROIC_DIR" "$APP" "$SOURCE" "$RUNNER" "$@" <<'HEROICPY'
 {_HEROIC_PY_RESOLVER}
 HEROICPY
 )"
@@ -603,7 +631,7 @@ START="$(date +%Y-%m-%dT%H:%M:%S%z)"
 if [ "$#" -gt 0 ]; then "$@"; RC=$?; else RC=0; fi
 END="$(date +%Y-%m-%dT%H:%M:%S%z)"
 
-if [ -z "$TITLE" ]; then log "Heroic: jogo não identificado (APP=$APP)"; exit $RC; fi
+if [ -z "$TITLE" ]; then log "Heroic: jogo não identificado. APP='$APP' CMD='$*'"; exit $RC; fi
 S="$(date -d "$START" +%s 2>/dev/null || echo 0)"
 E="$(date -d "$END" +%s 2>/dev/null || echo 0)"
 DUR=$(( E - S ))
