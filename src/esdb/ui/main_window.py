@@ -64,7 +64,7 @@ class MainWindow(QMainWindow):
                         "options": {}}
         self._current = "summary"
 
-        self.setWindowTitle("ES-DB")
+        self.setWindowTitle("ActivityPlayTime")
         _icon = icon_file()
         if _icon:
             self.setWindowIcon(QIcon(_icon))

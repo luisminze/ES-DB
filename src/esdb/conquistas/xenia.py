@@ -50,8 +50,8 @@ def _utf16be_z(b: bytes, o: int) -> tuple[str, int]:
 
 
 def _cache_root() -> Path:
-    env = os.environ.get("ES_DB_HOME")
-    return (Path(env) if env else Path.home() / "ES-DB") / "cache" / "xenia"
+    from ..config import stats_home
+    return stats_home() / "cache" / "xenia"
 
 
 def _entries(data: bytes):

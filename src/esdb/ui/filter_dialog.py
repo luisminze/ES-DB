@@ -64,7 +64,8 @@ class FilterPanel(QFrame):
         self.setObjectName("FilterPanel")
         self.setStyleSheet(app.window.styleSheet())
         self._app = app
-        self._accent = "#EB5E54"
+        from ..theme import active
+        self._accent = active()["accent"]
         lib = app.library
 
         root = QVBoxLayout(self)

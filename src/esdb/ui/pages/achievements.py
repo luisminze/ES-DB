@@ -7,8 +7,7 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QScrollArea,
                                QVBoxLayout, QWidget)
 
 from ...conquistas.models import GameAchievements, Grade
-from ...conquistas.scoring import (achievement_stats, sony_score,
-                                   xbox_gamerscore)
+from ...conquistas.scoring import achievement_stats
 from ..charts import SEGMENT_COLORS, RingChart
 from ..widgets import cover_label, section_title, stat_tile, trophy_icon
 from .base import clear_layout, empty_label
@@ -78,12 +77,6 @@ class AchievementsPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(12)
-        # Pontuação reduzida no canto superior direito (Update2).
-        self._topscore = QWidget()
-        self._topscore_lay = QHBoxLayout(self._topscore)
-        self._topscore_lay.setContentsMargins(0, 0, 0, 0)
-        self._topscore_lay.setSpacing(10)
-        outer.addWidget(self._topscore)
 
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
@@ -123,7 +116,6 @@ class AchievementsPage(QWidget):
     def update_view(self) -> None:
         self._games = self._app.conquistas_games()
         clear_layout(self._list_lay)
-        clear_layout(self._topscore_lay)
         clear_layout(self._rings_lay)
         if not self._games:
             self._list_lay.addWidget(empty_label(
@@ -133,7 +125,6 @@ class AchievementsPage(QWidget):
             clear_layout(self._detail_lay)
             self._detail_lay.addStretch()
             return
-        self._build_topscore()
         self._build_rings()
         for g in self._games:
             row = GameRow(g, g is self._selected)
@@ -143,43 +134,6 @@ class AchievementsPage(QWidget):
         if self._selected not in self._games:
             self._selected = self._games[0]
         self._render_detail()
-
-    # --------------------------------------------- pontuação (topo direito)
-    def _build_topscore(self) -> None:
-        sony = sony_score(self._games)
-        gs = xbox_gamerscore(self._games)
-        card = QFrame()
-        card.setObjectName("RetroCard")
-        v = QVBoxLayout(card)
-        v.setContentsMargins(14, 8, 14, 8)
-        v.setSpacing(2)
-        line = QHBoxLayout()
-        line.setSpacing(14)
-        cat = QLabel(f"Nível {sony.category}")
-        cat.setObjectName("CardTitle")
-        pts = QLabel(f"{sony.points} pts")
-        pts.setObjectName("TileAccent")
-        pts.setStyleSheet("font-size: 18px;")
-        sep = QLabel("·")
-        sep.setObjectName("CardMeta")
-        gval = QLabel(f"{gs} G")
-        gval.setObjectName("CardTitle")
-        line.addWidget(cat)
-        line.addWidget(pts)
-        line.addWidget(sep)
-        line.addWidget(gval)
-        v.addLayout(line)
-        sub = QLabel(f"🥉{sony.by_grade.get(Grade.BRONZE,0)} "
-                     f"🥈{sony.by_grade.get(Grade.SILVER,0)} "
-                     f"🥇{sony.by_grade.get(Grade.GOLD,0)} "
-                     f"🏆{sony.by_grade.get(Grade.PLATINUM,0)}  ·  Sony + Gamerscore"
-                     + (f"  ·  faltam {sony.next_threshold - sony.points} pts"
-                        if sony.next_threshold else ""))
-        sub.setObjectName("CardMeta")
-        v.addWidget(sub)
-        card.setMaximumWidth(420)
-        self._topscore_lay.addStretch()
-        self._topscore_lay.addWidget(card)
 
     # ------------------------------------------------------ anéis (rodapé)
     def _build_rings(self) -> None:
@@ -282,9 +236,7 @@ class AchievementsPage(QWidget):
 
         meta = QVBoxLayout()
         meta.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grade_text = (f"{a.gamerscore} G" if a.grade.value == "gamerscore"
-                      and a.gamerscore else a.grade.label)
-        grade = QLabel(grade_text)
+        grade = QLabel(a.grade.label)
         grade.setStyleSheet(f"color: {_GRADE_COLOR.get(a.grade.value, '#6B7280')};"
                             " font-weight: 700;")
         grade.setAlignment(Qt.AlignRight)

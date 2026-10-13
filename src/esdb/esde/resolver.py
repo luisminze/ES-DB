@@ -55,10 +55,16 @@ def resolve_esde(home: str | Path | None = None) -> EsdeLayout:
 
 def discover_session_databases() -> list[Path]:
     """Bancos de sessão candidatos, mais provável primeiro (ESDE.md §3)."""
+    from ..config import stats_home
     out: list[Path] = []
-    stats_db = Path.home() / "ES-DB" / "database"
-    if stats_db.is_dir():
-        out.extend(sorted(p for p in stats_db.glob("*.db")))
+    seen: set[Path] = set()
+    roots = [stats_home() / "database", Path.home() / "ES-DB" / "database"]
+    for root in roots:
+        if root.is_dir():
+            for p in sorted(root.glob("*.db")):
+                if p not in seen:
+                    seen.add(p)
+                    out.append(p)
     legacy = Path.home() / "GameSessionTracker" / "database" / "games.db"
     if legacy.is_file():
         out.append(legacy)

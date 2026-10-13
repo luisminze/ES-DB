@@ -9,8 +9,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QPushButton, QVBoxLayout, QWidget)
 
-from ...conquistas.scoring import (achievement_stats, sony_score,
-                                   xbox_gamerscore)
+from ...conquistas.scoring import achievement_stats
 from ...domain.calculations import Metrics, format_duration
 from ...domain.periods import year_period
 from ...domain.year_review import available_years, compute_year_review
@@ -79,14 +78,13 @@ class SummaryPage(QWidget):
             return
         self._lay.addWidget(section_title("Conquistas"))
         stats = achievement_stats(games)
-        sony = sony_score(games)
-        gs = xbox_gamerscore(games)
 
         score = QHBoxLayout()
         score.setSpacing(12)
-        score.addWidget(stat_tile(f"{sony.points} pts", f"Nível {sony.category} (Sony)", True))
-        score.addWidget(stat_tile(f"{gs} G", "Gamerscore (Xbox)"))
-        score.addWidget(stat_tile(f"{stats.unlocked}/{stats.total}", "Desbloqueadas"))
+        score.addWidget(stat_tile(f"{stats.unlocked}/{stats.total}", "Desbloqueadas", True))
+        score.addWidget(stat_tile(f"{stats.completed_games}/{stats.total_games}",
+                                  "Jogos 100%"))
+        score.addWidget(stat_tile(str(stats.rare_unlocked), "Raras (ouro+platina)"))
         self._lay.addLayout(score)
 
         rings = QFrame()

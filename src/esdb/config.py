@@ -1,8 +1,8 @@
-"""Configuração do ES-DB e caminhos da pasta do programa (ESDE.md §2).
+"""Configuração do ActivityPlayTime e caminhos da pasta do programa (ESDE.md §2).
 
-Tudo vive sob ``~/ES-DB`` (sobreponível por ``ES_DB_HOME``):
-preferências em ``config.json``, banco derivado em ``derived/`` e cache em
-``cache/``. A configuração é derivada em **passo único** do diretório do ES-DE.
+Tudo vive sob ``~/ActivityPlayTime`` (sobreponível por ``ACTIVITYPLAYTIME_HOME``;
+``ES_DB_HOME`` ainda é aceito por compatibilidade): preferências em
+``config.json``, banco derivado em ``derived/`` e cache em ``cache/``.
 """
 
 from __future__ import annotations
@@ -17,13 +17,30 @@ from .data.source_adapter import GameSessionTrackerSqliteAdapter
 from .domain.timeparse import local_offset
 from .esde.resolver import DEFAULT_ESDE_HOME, discover_session_databases
 
+APP_NAME = "ActivityPlayTime"
+_LEGACY_DIRNAME = "ES-DB"
+
 
 def stats_home() -> Path:
-    env = os.environ.get("ES_DB_HOME")
-    return Path(env).expanduser() if env else Path.home() / "ES-DB"
+    env = os.environ.get("ACTIVITYPLAYTIME_HOME") or os.environ.get("ES_DB_HOME")
+    return Path(env).expanduser() if env else Path.home() / APP_NAME
+
+
+def _migrate_legacy_home() -> None:
+    """Renomeia ``~/ES-DB`` → ``~/ActivityPlayTime`` uma única vez (preserva dados)."""
+    if os.environ.get("ACTIVITYPLAYTIME_HOME") or os.environ.get("ES_DB_HOME"):
+        return
+    target = Path.home() / APP_NAME
+    legacy = Path.home() / _LEGACY_DIRNAME
+    if not target.exists() and legacy.is_dir():
+        try:
+            legacy.rename(target)
+        except OSError:
+            pass
 
 
 def ensure_dirs() -> None:
+    _migrate_legacy_home()
     base = stats_home()
     for sub in ("database", "derived", "cache/thumbnails"):
         (base / sub).mkdir(parents=True, exist_ok=True)
@@ -44,6 +61,10 @@ class AppConfig:
     shadps4_dir: str = ""
     xenia_dir: str = ""
     achievements_enabled: bool = True   # liga/desliga toda a área de Conquistas
+    esde_enabled: bool = True           # integração ES-DE
+    lutris_enabled: bool = True         # integração Lutris
+    heroic_enabled: bool = True         # integração Heroic Games Launcher
+    heroic_dir: str = ""                # config do Heroic (~/.config/heroic)
 
     def tzinfo(self) -> timezone:
         if self.tz_offset_minutes is None:
@@ -75,6 +96,18 @@ def autodetect() -> AppConfig:
     cfg.shadps4_dir = str(shad) if shad else ""
     xenia = default_xenia_dir()
     cfg.xenia_dir = str(xenia) if xenia else ""
+    from .esde.heroic import default_heroic_dir
+    heroic = default_heroic_dir()
+    cfg.heroic_dir = str(heroic) if heroic else ""
+    return cfg
+
+
+def _fix_legacy_paths(cfg: AppConfig) -> AppConfig:
+    """Reaponta caminhos que ainda citam ``/ES-DB/`` para a pasta nova."""
+    legacy = f"/{_LEGACY_DIRNAME}/"
+    new = f"/{APP_NAME}/"
+    if cfg.session_db and legacy in cfg.session_db:
+        cfg.session_db = cfg.session_db.replace(legacy, new)
     return cfg
 
 
@@ -85,7 +118,14 @@ def load_config() -> AppConfig:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             known = {f for f in AppConfig.__slots__}  # type: ignore[attr-defined]
-            return AppConfig(**{k: v for k, v in data.items() if k in known})
+            cfg = AppConfig(**{k: v for k, v in data.items() if k in known})
+            cfg = _fix_legacy_paths(cfg)
+            if not cfg.heroic_dir:
+                from .esde.heroic import default_heroic_dir
+                heroic = default_heroic_dir()
+                cfg.heroic_dir = str(heroic) if heroic else ""
+            save_config(cfg)
+            return cfg
         except (json.JSONDecodeError, OSError, TypeError):
             pass
     cfg = autodetect()

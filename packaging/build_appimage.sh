@@ -9,9 +9,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 PY="${PYTHON:-$ROOT/.venv/bin/python}"
 DIST="$ROOT/dist"
-APPDIR="$DIST/ES-DB.AppDir"
+APPDIR="$DIST/ActivityPlayTime.AppDir"
 TOOL="$ROOT/build/appimagetool-x86_64.AppImage"
-OUT="$DIST/ES-DB-x86_64.AppImage"
+OUT="$DIST/ActivityPlayTime-x86_64.AppImage"
 
 echo "==> 1/4 PyInstaller (bundle PySide6)"
 "$PY" -m PyInstaller --noconfirm --clean --distpath "$DIST" \
@@ -22,11 +22,13 @@ rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/lib" "$APPDIR/usr/share/applications" \
          "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 cp -r "$DIST/esdb" "$APPDIR/usr/lib/esdb"
-"$PY" packaging/make_icon.py "$APPDIR/esdb.png"
-cp "$APPDIR/esdb.png" "$APPDIR/.DirIcon"
-cp "$APPDIR/esdb.png" "$APPDIR/usr/share/icons/hicolor/512x512/apps/esdb.png"
-install -m644 packaging/esdb.desktop "$APPDIR/esdb.desktop"
-install -m644 packaging/esdb.desktop "$APPDIR/usr/share/applications/esdb.desktop"
+"$PY" packaging/make_icon.py "$APPDIR/activityplaytime.png"
+cp "$APPDIR/activityplaytime.png" "$APPDIR/.DirIcon"
+cp "$APPDIR/activityplaytime.png" \
+   "$APPDIR/usr/share/icons/hicolor/512x512/apps/activityplaytime.png"
+install -m644 packaging/esdb.desktop "$APPDIR/activityplaytime.desktop"
+install -m644 packaging/esdb.desktop \
+   "$APPDIR/usr/share/applications/activityplaytime.desktop"
 install -m755 packaging/AppRun "$APPDIR/AppRun"
 
 echo "==> 3/4 Obtendo o appimagetool"

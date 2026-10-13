@@ -14,10 +14,10 @@ from .ui.main_window import MainWindow
 
 def run() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("ES-DB")
-    app.setApplicationDisplayName("ES-DB")
-    app.setOrganizationName("ES-DB")
-    app.setDesktopFileName("es-db")
+    app.setApplicationName("ActivityPlayTime")
+    app.setApplicationDisplayName("ActivityPlayTime")
+    app.setOrganizationName("ActivityPlayTime")
+    app.setDesktopFileName("activityplaytime")
     icon = icon_file()
     if icon:
         app.setWindowIcon(QIcon(icon))

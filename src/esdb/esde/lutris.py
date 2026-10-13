@@ -12,11 +12,10 @@ import os
 import sqlite3
 from pathlib import Path
 
-# Runner do Lutris → plataforma legível (emuladores dedicados e nativos).
-RUNNER_PLATFORM: dict[str, str] = {
-    "wine": "Windows", "linux": "Linux", "steam": "Steam",
-    "dosbox": "MS-DOS", "scummvm": "ScummVM", "web": "Navegador",
-    "flatpak": "Linux", "libretro": "RetroArch",
+from .launchers import pc_platform  # noqa: E402
+
+# Runner de emulador/console do Lutris → plataforma (console; nunca PC).
+EMULATOR_RUNNER_PLATFORM: dict[str, str] = {
     "duckstation": "Sony PlayStation", "pcsx2": "Sony PlayStation 2",
     "rpcs3": "Sony PlayStation 3", "ppsspp": "Sony PlayStation Portable",
     "vita3k": "Sony PlayStation Vita", "shadps4": "Sony PlayStation 4",
@@ -81,8 +80,57 @@ def friendly_platform(system: str | None, fallback: str) -> str:
         return fallback
     tag = system.split(":", 1)[1].strip() if ":" in system else ""
     if not tag:
-        return fallback or "PC (Lutris)"
-    return CORE_PLATFORM.get(tag) or RUNNER_PLATFORM.get(tag) or fallback or "PC (Lutris)"
+        return fallback or "PC (Windows)"
+    hit = CORE_PLATFORM.get(tag) or EMULATOR_RUNNER_PLATFORM.get(tag)
+    if hit:
+        return hit
+    # Sem loja no tag: runner de PC vira PC (Windows)/PC (Linux); senão fallback.
+    if tag in ("wine", "linux", "steam", "flatpak", "web"):
+        return pc_platform(tag if tag == "steam" else None,
+                           "linux" if tag in ("linux", "flatpak") else "windows")
+    return fallback or "PC (Windows)"
+
+
+def _parse_tag(system: str) -> dict[str, str]:
+    """Extrai runner/core/store de ``lutris:...`` (estruturado ou token único)."""
+    rest = str(system)[len("lutris"):].lstrip(":").strip()
+    out = {"runner": "", "core": "", "store": ""}
+    if "=" in rest:
+        for part in rest.split(";"):
+            if "=" in part:
+                k, v = part.split("=", 1)
+                k = k.strip()
+                if k in out:
+                    out[k] = v.strip()
+    elif rest:  # legado: token único = core ou runner
+        if rest in CORE_PLATFORM:
+            out["core"] = rest
+        else:
+            out["runner"] = rest
+    return out
+
+
+def platform_from_tag(system: str | None) -> str | None:
+    """Plataforma final a partir do tag ``lutris:...`` (sem ambiguidade de nome).
+
+    Consoles → nome do console; jogos de PC → ``PC (<loja/SO>)``. Tags antigos
+    sem informação (``lutris`` puro) retornam ``None`` (mantém o rótulo gravado).
+    """
+    if not system or not str(system).startswith("lutris"):
+        return None
+    t = _parse_tag(system)
+    core, runner, store = t["core"], t["runner"], t["store"]
+    if core:
+        return CORE_PLATFORM.get(core) or f"Lutris core: {core}"
+    if runner in EMULATOR_RUNNER_PLATFORM:
+        return EMULATOR_RUNNER_PLATFORM[runner]
+    if store or runner in ("wine", "linux", "steam", "flatpak"):
+        os_hint = "linux" if runner in ("linux", "flatpak") else "windows"
+        s = store or ("steam" if runner == "steam" else "")
+        return pc_platform(s, os_hint)
+    if runner:
+        return f"Lutris: {runner}"
+    return None
 
 
 def default_data_dir() -> Path:
@@ -108,8 +156,11 @@ class LutrisIndex:
         try:
             conn = sqlite3.connect(f"file:{pga}?mode=ro", uri=True)
             conn.row_factory = sqlite3.Row
+            # 'service' (loja) pode não existir em versões antigas do Lutris.
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(games)")}
+            service_expr = "service" if "service" in cols else "''"
             rows = conn.execute(
-                "SELECT name, platform, runner, configpath, "
+                f"SELECT name, platform, runner, configpath, {service_expr} AS service, "
                 "COALESCE(installed,0) AS installed, "
                 "COALESCE(lastplayed,0) AS lastplayed FROM games").fetchall()
             conn.close()
@@ -138,19 +189,34 @@ class LutrisIndex:
         return ""
 
     def platform_for(self, name: str) -> str | None:
-        """Plataforma exata do jogo (ou ``None`` se não constar no Lutris)."""
+        """Plataforma exata do jogo (ou ``None`` se não constar no Lutris).
+
+        Consoles mantêm o nome do console; jogos de PC viram ``PC (<loja>)``
+        conforme a loja (``service``) do Lutris.
+        """
         r = self._by_name.get(name)
         if r is None:
             return None
         plat = (r["platform"] or "").strip()
-        if plat:
-            return plat
         runner = (r["runner"] or "").strip()
+        service = (r["service"] or "").strip().lower()
+        # 1) Consoles (emulação): core libretro, runner de emulador, ou
+        #    plataforma de console que o próprio Lutris preencheu.
         if runner == "libretro":
             core = self._core(r["configpath"])
             if core in CORE_PLATFORM:
                 return CORE_PLATFORM[core]
-        return RUNNER_PLATFORM.get(runner)
+        if runner in EMULATOR_RUNNER_PLATFORM:
+            return EMULATOR_RUNNER_PLATFORM[runner]
+        if plat and plat not in ("Windows", "Linux"):
+            return plat
+        # 2) Jogos de PC: distingue pela loja (service) ou pelo SO.
+        if service or runner in ("wine", "linux", "steam", "flatpak", ""):
+            os_hint = "linux" if (runner in ("linux", "flatpak")
+                                  or plat == "Linux") else "windows"
+            store = service or ("steam" if runner == "steam" else "")
+            return pc_platform(store, os_hint)
+        return None
 
     def system_tag_for(self, name: str) -> str | None:
         """Tag ``lutris:<core|runner>`` — igual ao que o script grava."""

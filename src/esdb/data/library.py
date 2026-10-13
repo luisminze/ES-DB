@@ -20,6 +20,17 @@ from .importer import classify_session
 from .source_adapter import GameSessionTrackerSqliteAdapter
 
 
+def _platform_from_system(system: str, fallback: str) -> str:
+    """Rótulo de plataforma a partir do tag do launcher (Lutris/Heroic)."""
+    if system and str(system).startswith("lutris"):
+        from ..esde.lutris import platform_from_tag
+        return platform_from_tag(system) or fallback
+    if system and str(system).startswith("heroic"):
+        from ..esde.heroic import platform_from_tag
+        return platform_from_tag(system) or fallback
+    return fallback
+
+
 class Library:
     """Estado consolidado de uma fonte, pronto para a interface consumir.
 
@@ -53,11 +64,11 @@ class Library:
             return result
 
         src_path = self.session_db
-        # Normaliza jogos do Lutris para a plataforma exata (pga.db). Se algo
-        # mudou (inclui fusões de linhas), reimporta do zero para manter o
+        # Normaliza jogos de Lutris/Heroic para a plataforma final (pelo tag do
+        # jogo). Se algo mudou (inclui fusões), reimporta do zero para manter o
         # banco derivado consistente.
-        from ..esde.writer import sync_lutris_rows
-        if sync_lutris_rows(src_path):
+        from ..esde.writer import sync_launcher_rows
+        if sync_launcher_rows(src_path):
             self.store.reset_source(src_path)
         # Importação incremental por sessions.id (idempotente).
         cursor = self.store.get_cursor(src_path)
@@ -90,10 +101,8 @@ class Library:
                                                  "Sessão sinalizada para revisão"))
 
     def _build_games(self, src_games: dict[int, object]) -> None:
-        from ..esde.lutris import LutrisIndex, friendly_platform
         overrides = self.store.get_overrides(self.session_db)
         hidden = self.store.hidden_games(self.session_db)
-        lutris = LutrisIndex()
         agg: dict[int, dict] = {}
         for s in self.sessions:
             a = agg.setdefault(s.game_id, {"secs": 0, "count": 0,
@@ -118,11 +127,7 @@ class Library:
             a = agg.get(gid, {})
             ov = overrides.get(gid, {})
             cover_path = ov.get("cover") or (str(cover) if cover else None)
-            platform = src.platform  # type: ignore[attr-defined]
-            if system and str(system).startswith("lutris"):
-                # pga.db é autoritativo (por nome); senão, traduz o tag do system.
-                platform = (lutris.platform_for(src.name)  # type: ignore[attr-defined]
-                            or friendly_platform(system, platform))
+            platform = _platform_from_system(system, src.platform)  # type: ignore[attr-defined]
             games.append(Game(
                 external_id=gid,
                 name=ov.get("title") or src.name,  # type: ignore[attr-defined]

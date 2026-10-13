@@ -1,8 +1,13 @@
-# ES-DB
+# ActivityPlayTime
 
 Aplicativo desktop **exclusivamente local** (sem rede) que transforma o
-histórico de sessões gravado por scripts de evento do **ES-DE** em uma interface
-moderna: Resumo, Estatísticas, Atividade, Conquistas, Retrospectiva e Biblioteca.
+histórico de sessões gravado por scripts de evento do **ES-DE**, **Lutris** e
+**Heroic Games Launcher** em uma interface moderna: Resumo, Estatísticas,
+Atividade, Conquistas, Retrospectiva e Biblioteca. Cada jogo é identificado por
+plataforma exata (consoles e PC por loja: Windows/Steam/Epic/GOG/Amazon/Linux),
+sem misturar títulos iguais de plataformas diferentes.
+
+> Pasta de dados: `~/ActivityPlayTime` (migrada automaticamente de `~/ES-DB`).
 
 A especificação completa está em [`specs/`](specs/README.md).
 
@@ -29,12 +34,12 @@ sessões. Nenhuma fonte analisada é modificada.
 ```bash
 .venv/bin/pip install pyinstaller
 bash packaging/build_appimage.sh
-# saída: dist/ES-DB-x86_64.AppImage
+# saída: dist/ActivityPlayTime-x86_64.AppImage
 ```
 
 O script empacota o app com PyInstaller (incl. PySide6), monta o AppDir com ícone
 e `.desktop` e gera o AppImage com o `appimagetool` (baixado automaticamente).
-Depois, basta `chmod +x dist/ES-DB-x86_64.AppImage && ./dist/ES-DB-x86_64.AppImage`.
+Depois, basta `chmod +x dist/ActivityPlayTime-x86_64.AppImage && ./dist/ActivityPlayTime-x86_64.AppImage`.
 
 ## Testes
 

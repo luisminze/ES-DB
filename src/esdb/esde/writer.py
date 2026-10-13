@@ -12,7 +12,12 @@ import sqlite3
 import stat
 from pathlib import Path
 
-MARKER = "# gerado-por: ES-DB"
+MARKER = "# gerado-por: ActivityPlayTime"
+_LEGACY_MARKER = "# gerado-por: ES-DB"
+
+
+def _has_marker(text: str) -> bool:
+    return MARKER in text or _LEGACY_MARKER in text
 
 # Mapa sistema → nome legível (espelha o script de referência do ES-DE).
 PLATFORM_MAP: dict[str, str] = {
@@ -100,30 +105,35 @@ def clear_all_data(db_path: str | Path) -> bool:
     return True
 
 
-def sync_lutris_rows(db_path: str | Path, data_dir: str | Path | None = None) -> int:
-    """Normaliza as linhas de jogos do Lutris no banco de sessões para a
-    plataforma **exata** do ``pga.db`` (ex.: ``PC (Lutris)`` → ``Sony
-    PlayStation``), evitando duplicatas quando o script passa a gravar a
-    plataforma exata. Idempotente: não faz nada se já estiver correto ou se o
-    ``pga.db`` não existir. Retorna quantas linhas foram ajustadas."""
-    from .lutris import LutrisIndex
+def _tag_platform(system: str) -> str | None:
+    """Plataforma final a partir do tag do launcher (Lutris/Heroic)."""
+    if str(system).startswith("lutris"):
+        from .lutris import platform_from_tag
+        return platform_from_tag(system)
+    if str(system).startswith("heroic"):
+        from .heroic import platform_from_tag
+        return platform_from_tag(system)
+    return None
 
+
+def sync_launcher_rows(db_path: str | Path) -> int:
+    """Normaliza as linhas de Lutris/Heroic no banco para a plataforma final
+    derivada do **tag do próprio jogo** (``system``) — sem ambiguidade de nome,
+    então o mesmo título em plataformas diferentes nunca se funde. Idempotente;
+    retorna quantas linhas mudaram. Em conflito (linha exata já existe) funde as
+    sessões."""
     target = Path(db_path).expanduser()
     if not target.is_file():
-        return 0
-    idx = LutrisIndex(data_dir)
-    if not idx.available:
         return 0
     conn = sqlite3.connect(str(target))
     changed = 0
     try:
         rows = conn.execute(
             "SELECT id, name, platform, system FROM games "
-            "WHERE system LIKE 'lutris%'").fetchall()
+            "WHERE system LIKE 'lutris%' OR system LIKE 'heroic%'").fetchall()
         for gid, name, platform, system in rows:
-            exact = idx.platform_for(name)
-            tag = idx.system_tag_for(name)
-            if not exact or (platform == exact and system == tag):
+            exact = _tag_platform(system)
+            if not exact or platform == exact:
                 continue
             other = conn.execute(
                 "SELECT id FROM games WHERE name=? AND platform=? AND id<>?",
@@ -132,11 +142,9 @@ def sync_lutris_rows(db_path: str | Path, data_dir: str | Path | None = None) ->
                 conn.execute("UPDATE sessions SET game_id=? WHERE game_id=?",
                              (other[0], gid))
                 conn.execute("DELETE FROM games WHERE id=?", (gid,))
-                conn.execute("UPDATE games SET system=? WHERE id=?",
-                             (tag, other[0]))
             else:
-                conn.execute("UPDATE games SET platform=?, system=? WHERE id=?",
-                             (exact, tag, gid))
+                conn.execute("UPDATE games SET platform=? WHERE id=?",
+                             (exact, gid))
             changed += 1
         conn.commit()
     except sqlite3.OperationalError:
@@ -144,6 +152,11 @@ def sync_lutris_rows(db_path: str | Path, data_dir: str | Path | None = None) ->
     finally:
         conn.close()
     return changed
+
+
+# Compat.: nome antigo ainda usado em testes/integrações.
+def sync_lutris_rows(db_path: str | Path, data_dir=None) -> int:
+    return sync_launcher_rows(db_path)
 
 
 def _runtime_dir(db_path: Path) -> Path:
@@ -373,35 +386,47 @@ DUR=$(( E - S ))
 
 esc() {{ printf "%s" "$1" | sed "s/'/''/g"; }}
 
-# Plataforma exata: consulta o banco do Lutris (pga.db) pela mesma NAME.
-#   platform  → já é a plataforma legível quando preenchida (ex.: Windows).
-#   runner    → emulador/execução (ex.: duckstation, wine).
-#   configpath→ nome do .yml com o core libretro.
+# Plataforma exata por JOGO (desambigua títulos iguais em plataformas
+# diferentes, ex.: Forza Horizon 2 em wine e em xenia):
+#   - WINEPREFIX definido  → jogo de PC via wine/proton (runner=wine).
+#   - senão                → consulta o pga.db ignorando linhas 'wine', pegando
+#                            o emulador/runner nativo correto; lê o core libretro.
 LUTRIS_DATA="${{XDG_DATA_HOME:-$HOME/.local/share}}/lutris"
 PGA="$LUTRIS_DATA/pga.db"
-LPLATFORM=""; LRUNNER=""; LCFG=""; LCORE=""
-if [ -f "$PGA" ] && command -v sqlite3 >/dev/null 2>&1; then
+LRUNNER=""; LCFG=""; LCORE=""
+if [ -n "${{WINEPREFIX:-}}" ]; then
+  LRUNNER="wine"
+elif [ -f "$PGA" ] && command -v sqlite3 >/dev/null 2>&1; then
   NAME_Q="$(esc "$NAME")"
   ROW="$(sqlite3 -separator '|' "file:$PGA?mode=ro" \\
-    "SELECT COALESCE(platform,''), COALESCE(runner,''), COALESCE(configpath,'') \\
-     FROM games WHERE name='$NAME_Q' ORDER BY installed DESC, lastplayed DESC LIMIT 1;" \\
-    2>/dev/null || true)"
-  LPLATFORM="${{ROW%%|*}}"; REST="${{ROW#*|}}"; LRUNNER="${{REST%%|*}}"; LCFG="${{REST##*|}}"
+    "SELECT COALESCE(runner,''), COALESCE(configpath,'') \\
+     FROM games WHERE name='$NAME_Q' AND COALESCE(runner,'')<>'wine' \\
+     ORDER BY installed DESC, lastplayed DESC LIMIT 1;" 2>/dev/null || true)"
+  LRUNNER="${{ROW%%|*}}"; LCFG="${{ROW##*|}}"
   if [ "$LRUNNER" = "libretro" ] && [ -n "$LCFG" ] && [ -f "$LUTRIS_DATA/games/$LCFG.yml" ]; then
     LCORE="$(sed -n 's/^[[:space:]]*core:[[:space:]]*//p' "$LUTRIS_DATA/games/$LCFG.yml" \\
              | head -1 | tr -d '\\r')"
   fi
 fi
 
-# SYSTEM carrega o core (libretro) ou o runner, com marcador lutris: o app
-# traduz para o nome de plataforma amigável. PLATFORM guarda o melhor rótulo já
-# disponível (plataforma do Lutris, loja, ou genérico) para uso standalone.
-if [ -n "$LCORE" ]; then SYSTEM="lutris:$LCORE"
-elif [ -n "$LRUNNER" ]; then SYSTEM="lutris:$LRUNNER"
-else SYSTEM="lutris"; fi
-if [ -n "$LPLATFORM" ]; then PLATFORM="$LPLATFORM"
-elif [ -n "$STORE" ]; then PLATFORM="PC — $STORE"
-else PLATFORM="PC (Lutris)"; fi
+# Tag estruturado (sem ambiguidade) — o app deriva a plataforma final dele.
+SYSTEM="lutris:runner=$LRUNNER;core=$LCORE;store=$STORE"
+# PLATFORM de escrita: distinto por plataforma real (o app normaliza depois).
+LRL="$(printf '%s' "$STORE" | tr 'A-Z' 'a-z')"
+if [ -n "$LCORE" ]; then PLATFORM="Lutris core: $LCORE"
+elif [ -n "$LRUNNER" ] && [ "$LRUNNER" != "wine" ] && [ "$LRUNNER" != "linux" ] \\
+     && [ "$LRUNNER" != "steam" ] && [ "$LRUNNER" != "flatpak" ]; then
+  PLATFORM="Lutris: $LRUNNER"
+else
+  case "$LRL" in
+    steam) PLATFORM="PC (Steam)" ;;
+    gog) PLATFORM="PC (GOG)" ;;
+    egs|epic|epicgamesstore) PLATFORM="PC (Epic Games)" ;;
+    amazon|nile) PLATFORM="PC (Amazon)" ;;
+    *) if [ "$LRUNNER" = "linux" ] || [ "$LRUNNER" = "flatpak" ]; then
+         PLATFORM="PC (Linux)"; else PLATFORM="PC (Windows)"; fi ;;
+  esac
+fi
 
 NAME_E="$(esc "$NAME")"
 PLATFORM_E="$(esc "$PLATFORM")"
@@ -451,7 +476,7 @@ def lutris_scripts_installed(target_dir: str | Path) -> bool:
     for name in ("lutris-game-start.sh", "lutris-game-end.sh"):
         f = target / name
         try:
-            if f.is_file() and MARKER in f.read_text(encoding="utf-8", errors="ignore"):
+            if f.is_file() and _has_marker(f.read_text(encoding="utf-8", errors="ignore")):
                 return True
         except OSError:
             continue
@@ -465,7 +490,202 @@ def remove_lutris_scripts(target_dir: str | Path) -> list[Path]:
     for name in ("lutris-game-start.sh", "lutris-game-end.sh"):
         f = target / name
         try:
-            if f.is_file() and MARKER in f.read_text(encoding="utf-8", errors="ignore"):
+            if f.is_file() and _has_marker(f.read_text(encoding="utf-8", errors="ignore")):
+                f.unlink()
+                removed.append(f)
+        except OSError:
+            continue
+    return removed
+
+
+# ---------------------------------------------------------------- Heroic
+# O Heroic executa os scripts "antes/depois" sem variáveis nem argumentos — só
+# define o diretório do jogo como cwd. Identifica-se o jogo cruzando o $PWD com
+# as bibliotecas do Heroic (inline, só stdlib). Imprime "TITULO\tLOJA".
+_HEROIC_PY_RESOLVER = r'''
+import json, sys
+from pathlib import Path
+cwd = (sys.argv[1] if len(sys.argv) > 1 else "").rstrip("/")
+base = Path(sys.argv[2]) if len(sys.argv) > 2 else None
+RS = {"legendary": "epic", "gog": "gog", "nile": "amazon", "sideload": ""}
+def games(p):
+    try:
+        d = json.load(open(p))
+    except Exception:
+        return []
+    if isinstance(d, dict):
+        for k in ("library", "games"):
+            if isinstance(d.get(k), list):
+                return [g for g in d[k] if isinstance(g, dict)]
+    return []
+if base and cwd:
+    libs = [base / "store_cache" / "legendary_library.json",
+            base / "store_cache" / "gog_library.json",
+            base / "store_cache" / "nile_library.json",
+            base / "sideload_apps" / "library.json"]
+    for lib in libs:
+        for g in games(lib):
+            if not g.get("is_installed"):
+                continue
+            ins = g.get("install") or {}
+            paths = [ins.get("install_path"), g.get("folder_name")]
+            if ins.get("executable"):
+                paths.append(str(Path(ins["executable"]).parent))
+            for p in paths:
+                if not p:
+                    continue
+                p = str(p).rstrip("/")
+                if cwd == p or cwd.startswith(p + "/") or p.startswith(cwd + "/"):
+                    runner = g.get("runner", "")
+                    store = RS.get(runner, "")
+                    if not store:
+                        pl = (ins.get("platform") or "Windows").lower()
+                        store = "linux" if "linux" in pl else "windows"
+                    sys.stdout.write((g.get("title") or "") + "\t" + store)
+                    sys.exit(0)
+'''
+
+_HEROIC_RESOLVE = """HEROIC_DIR="${{HEROIC_CONFIG_DIR:-$HOME/.config/heroic}}"
+[ -d "$HEROIC_DIR" ] || HEROIC_DIR="$HOME/.var/app/com.heroicgameslauncher.hgl/config/heroic"
+INFO=""
+if command -v python3 >/dev/null 2>&1; then
+  INFO="$(python3 -I - "$PWD" "$HEROIC_DIR" <<'HEROICPY'
+{resolver}
+HEROICPY
+)"
+fi
+TITLE="${{INFO%%$'\\t'*}}"
+STORE="${{INFO#*$'\\t'}}"
+[ "$STORE" = "$INFO" ] && STORE="" """
+
+
+def _heroic_start_script(db_path: Path) -> str:
+    rt = _runtime_dir(db_path)
+    resolve = _HEROIC_RESOLVE.format(resolver=_HEROIC_PY_RESOLVER)
+    return f"""#!/usr/bin/env bash
+{MARKER}
+# Heroic: script "antes de iniciar" (Configurações → Avançado → Scripts, global
+# ou por jogo). O Heroic só fornece o diretório do jogo como cwd.
+set -euo pipefail
+RUNTIME_DIR="{rt}"
+LOG="$RUNTIME_DIR/tracker.log"
+mkdir -p "$RUNTIME_DIR"
+{_LOG_FN}
+{resolve}
+if [ -z "$TITLE" ]; then log "Heroic: jogo não identificado em $PWD"; exit 0; fi
+SAFE="$(printf '%s' "$TITLE" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-120)"
+RUNTIME="$RUNTIME_DIR/heroic_$SAFE"
+printf '%s\\n%s\\n%s\\n%s\\n' \\
+  "$(date +%Y-%m-%dT%H:%M:%S%z)" "$TITLE" "$STORE" "$PWD" > "$RUNTIME"
+log "Sessão Heroic iniciada: $TITLE [${{STORE:-pc}}]"
+exit 0
+"""
+
+
+def _heroic_end_script(db_path: Path) -> str:
+    rt = _runtime_dir(db_path)
+    resolve = _HEROIC_RESOLVE.format(resolver=_HEROIC_PY_RESOLVER)
+    return f"""#!/usr/bin/env bash
+{MARKER}
+# Heroic: script "depois de fechar" (Configurações → Avançado → Scripts).
+set -euo pipefail
+DB="{db_path}"
+RUNTIME_DIR="{rt}"
+LOG="$RUNTIME_DIR/tracker.log"
+EXPORT="$RUNTIME_DIR/export.sh"
+{_LOG_FN}
+{resolve}
+if [ -z "$TITLE" ]; then exit 0; fi
+SAFE="$(printf '%s' "$TITLE" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-120)"
+RUNTIME="$RUNTIME_DIR/heroic_$SAFE"
+[ -f "$RUNTIME" ] || exit 0
+
+END="$(date +%Y-%m-%dT%H:%M:%S%z)"
+START="$(sed -n '1p' "$RUNTIME")"
+NAME="$(sed -n '2p' "$RUNTIME")"
+STORE="$(sed -n '3p' "$RUNTIME")"
+DIR="$(sed -n '4p' "$RUNTIME")"
+rm -f "$RUNTIME"
+[ -n "$START" ] && [ -n "$NAME" ] || exit 0
+
+S="$(date -d "$START" +%s 2>/dev/null || echo 0)"
+E="$(date -d "$END" +%s 2>/dev/null || echo 0)"
+DUR=$(( E - S ))
+[ "$DUR" -lt 0 ] && DUR=0
+
+SYSTEM="heroic:store=$STORE"
+case "$STORE" in
+  epic) PLATFORM="PC (Epic Games)" ;;
+  gog) PLATFORM="PC (GOG)" ;;
+  amazon) PLATFORM="PC (Amazon)" ;;
+  steam) PLATFORM="PC (Steam)" ;;
+  linux) PLATFORM="PC (Linux)" ;;
+  *) PLATFORM="PC (Windows)" ;;
+esac
+
+esc() {{ printf "%s" "$1" | sed "s/'/''/g"; }}
+NAME_E="$(esc "$NAME")"
+PLATFORM_E="$(esc "$PLATFORM")"
+SYSTEM_E="$(esc "$SYSTEM")"
+DIR_E="$(esc "$DIR")"
+
+mkdir -p "$(dirname "$DB")"
+sqlite3 "$DB" <<SQL
+{_SCHEMA_SQL}
+INSERT INTO games(name, platform, system, rom) VALUES('$NAME_E','$PLATFORM_E','$SYSTEM_E','$DIR_E')
+  ON CONFLICT(name, platform) DO UPDATE SET system=excluded.system, rom=excluded.rom;
+INSERT INTO sessions(game_id, start_time, end_time, duration)
+  SELECT id, '$START', '$END', $DUR FROM games WHERE name='$NAME_E' AND platform='$PLATFORM_E';
+SQL
+log "Sessão Heroic encerrada: $NAME [$PLATFORM] (${{DUR}}s)"
+[ -x "$EXPORT" ] && "$EXPORT" >/dev/null 2>&1 || true
+exit 0
+"""
+
+
+def install_heroic_scripts(target_dir: str | Path, db_path: str | Path) -> list[Path]:
+    """Gera os scripts "antes/depois" do Heroic em ``target_dir`` apontando para
+    ``db_path``. O usuário aponta, em Configurações → Avançado → Scripts do
+    Heroic (global ou por jogo), o script "antes de iniciar" e o "depois de
+    fechar"."""
+    target = Path(target_dir).expanduser()
+    db = Path(db_path).expanduser()
+    target.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for name, body in (("heroic-game-start.sh", _heroic_start_script(db)),
+                       ("heroic-game-end.sh", _heroic_end_script(db))):
+        path = target / name
+        path.write_text(body, encoding="utf-8")
+        _chmodx(path)
+        written.append(path)
+    rt = _runtime_dir(db)
+    rt.mkdir(parents=True, exist_ok=True)
+    export = rt / "export.sh"
+    export.write_text(_export_script(db), encoding="utf-8")
+    _chmodx(export)
+    return written
+
+
+def heroic_scripts_installed(target_dir: str | Path) -> bool:
+    target = Path(target_dir).expanduser()
+    for name in ("heroic-game-start.sh", "heroic-game-end.sh"):
+        f = target / name
+        try:
+            if f.is_file() and _has_marker(f.read_text(encoding="utf-8", errors="ignore")):
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def remove_heroic_scripts(target_dir: str | Path) -> list[Path]:
+    """Remove apenas os scripts do Heroic gerados pelo ActivityPlayTime."""
+    target = Path(target_dir).expanduser()
+    removed: list[Path] = []
+    for name in ("heroic-game-start.sh", "heroic-game-end.sh"):
+        f = target / name
+        try:
+            if f.is_file() and _has_marker(f.read_text(encoding="utf-8", errors="ignore")):
                 f.unlink()
                 removed.append(f)
         except OSError:
@@ -511,7 +731,7 @@ def remove_scripts(scripts_dir: str | Path) -> list[Path]:
             continue
         for f in folder.glob("*.sh"):
             try:
-                if MARKER in f.read_text(encoding="utf-8", errors="ignore"):
+                if _has_marker(f.read_text(encoding="utf-8", errors="ignore")):
                     f.unlink()
                     removed.append(f)
             except OSError:
@@ -526,7 +746,7 @@ def scripts_installed(scripts_dir: str | Path) -> bool:
         if folder.is_dir():
             for f in folder.glob("*.sh"):
                 try:
-                    if MARKER in f.read_text(encoding="utf-8", errors="ignore"):
+                    if _has_marker(f.read_text(encoding="utf-8", errors="ignore")):
                         return True
                 except OSError:
                     continue

@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 from .theme import active
 
 # Paleta categórica usada nos segmentos (cores distintas, coerentes com o tema).
-SEGMENT_COLORS = ["#EB5E54", "#E0A24A", "#4FB15A", "#3BA7AD", "#4A90D9",
+SEGMENT_COLORS = ["#B6FC0E", "#3BA7AD", "#4A90D9", "#E0A24A", "#4FB15A",
                   "#7C5CCB", "#C06BB0", "#7E8CA0"]
 
 

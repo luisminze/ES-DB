@@ -1,11 +1,7 @@
-"""Pontuação e níveis locais de conquistas (ES-DB-Update1).
+"""Agregados (distribuição) de conquistas para os anéis da aba Conquistas.
 
-- **Sony (RPCS3, shadPS4)**: pontos por troféu desbloqueado, baseados no sistema
-  oficial da Sony — Bronze=15, Prata=30, Ouro=90, Platina=300. O nível (categoria)
-  vem do total acumulado: <300 Bronze, <600 Prata, <999 Ouro, >=999 Platina.
-- **Xbox (Xenia)**: Gamerscore = soma do valor das conquistas desbloqueadas.
-
-Tudo é calculado localmente a partir das conquistas já lidas (sem rede).
+Sem sistema de pontuação/níveis — apenas contagens de progresso por jogo,
+plataforma e grau de troféu. Tudo calculado localmente (sem rede).
 """
 
 from __future__ import annotations
@@ -13,64 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .models import GameAchievements, Grade
-
-SONY_EMULATORS = ("RPCS3", "shadPS4")
-SONY_POINTS = {
-    Grade.BRONZE: 15,
-    Grade.SILVER: 30,
-    Grade.GOLD: 90,
-    Grade.PLATINUM: 300,
-}
-# Limiares de categoria por pontos acumulados (ES-DB-Update1).
-_LEVELS = [(999, "Platina"), (600, "Ouro"), (300, "Prata"), (0, "Bronze")]
-
-
-@dataclass(slots=True)
-class SonyScore:
-    points: int = 0
-    category: str = "Bronze"
-    by_grade: dict[Grade, int] = field(default_factory=dict)   # troféus desbloqueados
-    next_threshold: int | None = None                          # pontos p/ próximo nível
-    progress: float = 0.0                                      # 0..1 dentro do nível
-
-
-def _category(points: int) -> tuple[str, int | None, float]:
-    for threshold, name in _LEVELS:
-        if points >= threshold:
-            idx = _LEVELS.index((threshold, name))
-            lower = threshold
-            upper = _LEVELS[idx - 1][0] if idx > 0 else None
-            if upper is None:
-                return name, None, 1.0
-            span = upper - lower
-            prog = (points - lower) / span if span else 1.0
-            return name, upper, max(0.0, min(1.0, prog))
-    return "Bronze", 300, 0.0
-
-
-def sony_score(games: list[GameAchievements]) -> SonyScore:
-    by_grade: dict[Grade, int] = {g: 0 for g in SONY_POINTS}
-    points = 0
-    for g in games:
-        if g.emulator not in SONY_EMULATORS:
-            continue
-        for a in g.achievements:
-            if a.unlocked and a.grade in SONY_POINTS:
-                by_grade[a.grade] += 1
-                points += SONY_POINTS[a.grade]
-    category, nxt, prog = _category(points)
-    return SonyScore(points, category, by_grade, nxt, prog)
-
-
-def xbox_gamerscore(games: list[GameAchievements]) -> int:
-    total = 0
-    for g in games:
-        if g.emulator != "Xenia":
-            continue
-        for a in g.achievements:
-            if a.unlocked and a.gamerscore:
-                total += a.gamerscore
-    return total
 
 
 @dataclass(slots=True)

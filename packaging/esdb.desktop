@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=ES-DB
-GenericName=Sessões de jogo do ES-DE
-Comment=Visualizador local de sessões, estatísticas e conquistas do ES-DE
-Exec=esdb
-Icon=esdb
+Name=ActivityPlayTime
+GenericName=Tempo de jogo e sessões
+Comment=Visualizador local de sessões, estatísticas e conquistas (ES-DE, Lutris, Heroic)
+Exec=activityplaytime
+Icon=activityplaytime
 Categories=Game;Utility;
 Terminal=false
-StartupWMClass=ES-DB
+StartupWMClass=ActivityPlayTime

@@ -33,8 +33,8 @@ _MONTHS_FULL = ["", "janeiro", "fevereiro", "março", "abril", "maio", "junho",
                 "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
 _MONTHS_DOT = ["", "jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.",
                "ago.", "set.", "out.", "nov.", "dez."]
-_HEAT = ["#262A33", "#5A2A2A", "#8E2F28", "#C24A3E", "#EB5E54"]
-_RADAR = "#EB5E54"
+_HEAT = ["#1E2A38", "#2E4A12", "#4C6A10", "#89C40C", "#B6FC0E"]
+_RADAR = "#B6FC0E"
 _GAME_COLORS = ["#3BA7AD", "#4FB15A", "#7E8CA0", "#7C5CCB", "#D06B6B",
                 "#4A90D9", "#E0A24A", "#C06BB0"]
 _OUTROS_COLOR = "#565C66"

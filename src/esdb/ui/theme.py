@@ -1,44 +1,47 @@
-"""Tema Playnite/Helium: paleta e folha de estilo (INTERFACE.md §4).
+"""Tema ActivityPlayTime: paleta e folha de estilo, alinhada ao ícone.
 
-Separa *chrome* (barra + navegação) do **painel de conteúdo escuro**. Acento
-vermelho reservado a seleção, foco e ações primárias — nunca única indicação de
-estado (a seleção também muda peso/contorno).
+Ícone: círculos azul/teal→navio com controle e relógio em **verde-limão**. O
+tema reflete isso — chrome/paineis em azul-marinho (escuro) ou teal claro, com
+acento verde-limão reservado a seleção, foco e ações. O acento nunca é a única
+indicação de estado (a seleção também muda peso/contorno).
 """
 
 from __future__ import annotations
 
+# Escuro: azul-marinho profundo + acento verde-limão (como o ícone).
 DARK = {
-    "chrome_bg": "#0C0D10",
-    "chrome_surface": "#141519",
-    "panel_bg": "#15171C",
-    "panel_surface": "#1C1F26",
-    "panel_surface_2": "#232731",
-    "text": "#E8EAED",
-    "text_dim": "#9BA1AD",
-    "text_faint": "#6B7280",
-    "border": "#2A2E38",
-    "accent": "#EB5E54",
-    "accent_dim": "#8E2F28",
-    "accent_wash": "#221015",       # fundo de cards com leve tom de acento
-    "select": "#3A414E",            # cor de seleção (cinza escuro)
+    "chrome_bg": "#0A1017",
+    "chrome_surface": "#111A24",
+    "panel_bg": "#0E151E",
+    "panel_surface": "#16212E",
+    "panel_surface_2": "#1F2D3C",
+    "text": "#E9EFF3",
+    "text_dim": "#9DB0BF",
+    "text_faint": "#647585",
+    "border": "#26384A",
+    "accent": "#B6FC0E",            # verde-limão do ícone
+    "accent_dim": "#4C6A10",
+    "accent_wash": "#121E12",       # fundo de cards com leve tom verde
+    "on_accent": "#0A1017",         # texto sobre preenchimento de acento
+    "select": "#294058",            # cor de seleção (azul-petróleo escuro)
 }
 
-# Tema claro unificado: tudo claro; separadores usam um branco levemente mais
-# escuro (panel_surface_2). Texto escuro, acento vermelho legível sobre branco.
+# Claro: teal/azul claro + acento verde-oliva legível sobre branco.
 LIGHT = {
-    "chrome_bg": "#E7E9ED",
+    "chrome_bg": "#DCE8EC",
     "chrome_surface": "#FFFFFF",
-    "panel_bg": "#F3F4F7",
+    "panel_bg": "#EDF3F5",
     "panel_surface": "#FFFFFF",
-    "panel_surface_2": "#E9EBEF",   # tom de branco mais escuro, levemente
-    "text": "#1B1E24",
-    "text_dim": "#596070",
-    "text_faint": "#949AA6",
-    "border": "#D6D9E0",
-    "accent": "#C62C22",
-    "accent_dim": "#EBB9B3",
-    "accent_wash": "#FBECEA",
-    "select": "#3E4654",            # cor de seleção (cinza escuro)
+    "panel_surface_2": "#E1EAEE",
+    "text": "#122029",
+    "text_dim": "#4A5A66",
+    "text_faint": "#8A99A4",
+    "border": "#C9D8DE",
+    "accent": "#5E8F06",            # verde-limão escurecido p/ contraste no claro
+    "accent_dim": "#BBD98C",
+    "accent_wash": "#EFF7E0",
+    "on_accent": "#FFFFFF",         # texto sobre preenchimento de acento
+    "select": "#2F4A63",            # cor de seleção (azul-petróleo)
 }
 
 _ACTIVE: dict[str, str] = DARK
@@ -225,9 +228,9 @@ def build_qss(p: dict[str, str]) -> str:
     #RetroYear {{ color: {p['accent']}; font-size: 40px; font-weight: 900; }}
     #BannerNum {{ color: {p['text']}; font-size: 34px; font-weight: 900; }}
     #DeltaUp {{ color: #4FB15A; font-weight: 700; font-size: 12px; }}
-    #DeltaDown {{ color: {p['accent']}; font-weight: 700; font-size: 12px; }}
+    #DeltaDown {{ color: #E5564B; font-weight: 700; font-size: 12px; }}
     #ExploreBadge {{
-        background: {p['accent']}; color: white; border-radius: 6px;
+        background: {p['accent']}; color: {p['on_accent']}; border-radius: 6px;
         padding: 1px 6px; font-size: 9px; font-weight: 700;
     }}
     #ExplorePct {{ color: {p['text']}; font-weight: 800; }}
