@@ -189,19 +189,42 @@ hooks do ES-DE, gravando no **mesmo banco**:
   casam com `downloaded_media` do ES-DE, aparecem na Biblioteca com placeholder —
   stats, sessões e filtros funcionam normalmente.
 
-**Plataforma exata.** O `game-end` consulta o banco do Lutris
-(`$XDG_DATA_HOME/lutris/pga.db`, somente leitura) pela mesma `GAME_NAME` e lê:
-`platform` (plataforma legível do Lutris, ex.: *Windows*, *Sony PlayStation*),
-`runner` (ex.: `duckstation`, `wine`) e, para libretro, o `core` do `.yml` do
-jogo. Grava `system = lutris:<core|runner>` e `platform` = a plataforma do Lutris
-(quando houver), senão `PC — <loja>`/`PC (Lutris)`. Na leitura, o app traduz o
-`system` para o nome amigável via `esde/lutris.py` (mapas core→plataforma e
-runner→plataforma): `mupen64plus_next` → Nintendo 64, `wine` → Windows, etc. Se
-o `pga.db` não existir, mantém o rótulo genérico.
+**Plataforma exata e desambiguação por jogo.** Um mesmo título pode existir em
+plataformas diferentes no Lutris (ex.: *Forza Horizon 2* em `wine` e em `xenia`).
+Para não misturá-los, o `game-end` grava um **tag estruturado** sem ambiguidade de
+nome: `system = lutris:runner=<r>;core=<c>;store=<STORE>`. A escolha do runner usa
+`WINEPREFIX` (definido ⇒ jogo de PC via wine) ou, se ausente, o `pga.db`
+(`$XDG_DATA_HOME/lutris/pga.db`, somente leitura) ignorando linhas `wine` — assim
+a versão de emulador é identificada corretamente. Na leitura, `esde/lutris.py`
+deriva a plataforma final **do tag** (nunca do nome): consoles → nome do console
+(`mupen64plus_next` → Nintendo 64, `xenia` → Microsoft Xbox 360); jogos de PC →
+`PC (<loja/SO>)` conforme `store`/SO. `data/library._build_games` e a migração
+`writer.sync_launcher_rows` normalizam o banco e **fundem** apenas linhas de
+mesmo `(name, platform)` final, de modo que plataformas diferentes nunca colapsam.
 
-O usuário aponta, no Lutris, o Comando pré-lançamento para `lutris-game-start.sh`
-e o Comando pós-saída para `lutris-game-end.sh`. Mesmo marcador de origem e mesma
-remoção seletiva dos scripts do ES-DE.
+### Gravação no Heroic Games Launcher
+
+O Heroic executa um **script antes de iniciar** e **outro depois de fechar**
+(Configurações → Avançado → Scripts, globais ou por jogo), mas **sem** variáveis
+nem argumentos — apenas define o diretório do jogo como `cwd`. Os scripts
+`heroic-game-start.sh`/`heroic-game-end.sh` (em `~/ActivityPlayTime/heroic`)
+identificam o jogo cruzando o `$PWD` com as bibliotecas do Heroic
+(`~/.config/heroic`: `store_cache/{legendary,gog,nile}_library.json` e
+`sideload_apps/library.json`), obtendo título e loja. Gravam
+`system = heroic:store=<loja>` e `platform = PC (<loja>)`: Epic → *PC (Epic
+Games)*, GOG → *PC (GOG)*, Amazon/Nile → *PC (Amazon)*, sideload → *PC
+(Windows)*/*PC (Linux)*.
+
+### Distinção de plataforma de PC
+
+Jogos de PC são distinguidos pela **loja**, não pelo launcher: `PC (Windows)`,
+`PC (Steam)`, `PC (Epic Games)`, `PC (GOG)`, `PC (Amazon)`, `PC (Linux)`. O mesmo
+título na mesma loja conta como **um** jogo (mesmo vindo de launchers diferentes);
+em lojas/consoles diferentes, continua **separado**. Os mapas vivem em
+`esde/launchers.py` (lojas) e `esde/lutris.py` (consoles).
+
+Em todos os launchers o usuário aponta os scripts gerados; o marcador de origem e
+a remoção seletiva são comuns.
 
 ### Dependências e segurança
 
