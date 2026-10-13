@@ -1,16 +1,18 @@
-"""Diálogo de detalhes do jogo — MAIN.md RF-05 (metadados + sessões + screenshots)."""
+"""Diálogo de detalhes do jogo — metadados + sessões (editáveis) + screenshots."""
 
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QGridLayout, QHBoxLayout, QLabel,
-                               QMessageBox, QPushButton, QScrollArea,
-                               QTableWidget, QTableWidgetItem, QVBoxLayout,
-                               QWidget)
+                               QMessageBox, QPushButton, QTableWidget,
+                               QTableWidgetItem, QVBoxLayout, QWidget)
 
 from ...domain.calculations import format_duration
 from ...domain.models import Game
 from ..widgets import cover_fit_label, cover_label, section_title, stat_tile
+from .base import clear_layout
+from .game_edit import (SessionEditDialog, edit_description, edit_name,
+                        edit_platform, edit_rating)
 
 
 class GameDetailDialog(QDialog):
@@ -18,15 +20,23 @@ class GameDetailDialog(QDialog):
         super().__init__(app.window)
         self._app = app
         self._game = game
-        self.setWindowTitle(game.display_title)
         self.resize(760, 680)
         self.setObjectName("Panel")
         self.setStyleSheet(app.window.styleSheet())
-        sessions = app.library.sessions_for_game(game.external_id)
+        self._root = QVBoxLayout(self)
+        self._root.setContentsMargins(20, 20, 20, 20)
+        self._root.setSpacing(14)
+        self._rebuild()
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 20)
-        root.setSpacing(14)
+    # ------------------------------------------------------------- render
+    def _rebuild(self) -> None:
+        game = self._app.library.games_by_id.get(self._game.external_id)
+        if game is None:  # removido/limpo enquanto aberto
+            self.accept()
+            return
+        self._game = game
+        self.setWindowTitle(game.display_title)
+        clear_layout(self._root)
 
         head = QHBoxLayout()
         head.setSpacing(16)
@@ -38,16 +48,16 @@ class GameDetailDialog(QDialog):
         title.setObjectName("PageTitle")
         title.setWordWrap(True)
         title_row.addWidget(title, 1)
-        remove_btn = QPushButton("Remover")
-        remove_btn.setObjectName("ChromeBtn")
-        remove_btn.setToolTip("Remove o jogo da biblioteca (as sessões são mantidas)")
-        remove_btn.clicked.connect(self._remove)
-        title_row.addWidget(remove_btn, 0, Qt.AlignTop)
-        clear_btn = QPushButton("Limpar dados")
-        clear_btn.setObjectName("ChromeBtn")
-        clear_btn.setToolTip("Apaga permanentemente as sessões gravadas deste jogo")
-        clear_btn.clicked.connect(self._clear)
-        title_row.addWidget(clear_btn, 0, Qt.AlignTop)
+        for text, slot, tip in (
+            ("Editar", self._edit_menu, "Editar nome, plataforma, descrição, avaliação"),
+            ("Remover", self._remove, "Remove da biblioteca (mantém as sessões)"),
+            ("Limpar dados", self._clear, "Apaga permanentemente as sessões"),
+        ):
+            b = QPushButton(text)
+            b.setObjectName("ChromeBtn")
+            b.setToolTip(tip)
+            b.clicked.connect(slot)
+            title_row.addWidget(b, 0, Qt.AlignTop)
         info.addLayout(title_row)
         plat = QLabel(f"{game.platform}  ·  {game.system}")
         plat.setObjectName("PageSubtitle")
@@ -72,8 +82,9 @@ class GameDetailDialog(QDialog):
                 info.addWidget(desc)
         info.addStretch()
         head.addLayout(info, 1)
-        root.addLayout(head)
+        self._root.addLayout(head)
 
+        sessions = self._app.library.sessions_for_game(game.external_id)
         durations = [s.duration_seconds for s in sessions if s.is_valid]
         tiles = QGridLayout()
         tiles.setSpacing(10)
@@ -86,36 +97,64 @@ class GameDetailDialog(QDialog):
         ]
         for i, (v, lab, acc) in enumerate(stats):
             tiles.addWidget(stat_tile(v, lab, acc), 0, i)
-        root.addLayout(tiles)
+        self._root.addLayout(tiles)
 
-        root.addWidget(section_title("Histórico de sessões"))
+        self._root.addWidget(section_title(
+            "Histórico de sessões  (duplo-clique para editar início/fim)"))
+        self._sessions = sessions
         table = QTableWidget(len(sessions), 3)
         table.setHorizontalHeaderLabels(["Início", "Fim", "Duração"])
         table.verticalHeader().setVisible(False)
         table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setSelectionBehavior(QTableWidget.SelectRows)
         table.horizontalHeader().setStretchLastSection(True)
         table.setColumnWidth(0, 300)
         table.setColumnWidth(1, 300)
         for row, s in enumerate(sessions):
             kind = "" if s.is_valid else f"  ({s.kind.value})"
             table.setItem(row, 0, QTableWidgetItem(
-                s.started_at.astimezone(app.tz).strftime("%d/%m/%Y %H:%M")))
+                s.started_at.astimezone(self._app.tz).strftime("%d/%m/%Y %H:%M")))
             table.setItem(row, 1, QTableWidgetItem(
-                s.ended_at.astimezone(app.tz).strftime("%d/%m/%Y %H:%M")))
+                s.ended_at.astimezone(self._app.tz).strftime("%d/%m/%Y %H:%M")))
             table.setItem(row, 2, QTableWidgetItem(
                 format_duration(s.duration_seconds) + kind))
-        root.addWidget(table, 1)
+        table.cellDoubleClicked.connect(self._edit_session)
+        self._root.addWidget(table, 1)
 
-        shots = app.library.screenshots_for(game)
+        shots = self._app.library.screenshots_for(game)
         if shots:
-            root.addWidget(section_title(f"Screenshots ({len(shots)})"))
+            self._root.addWidget(section_title(f"Screenshots ({len(shots)})"))
             strip = QHBoxLayout()
             for path in shots[:6]:
                 strip.addWidget(cover_label(path, game.display_title, 160, 90))
             strip.addStretch()
             holder = QWidget()
             holder.setLayout(strip)
-            root.addWidget(holder)
+            self._root.addWidget(holder)
+
+    # ------------------------------------------------------------- actions
+    def _edit_menu(self) -> None:
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QMenu
+        menu = QMenu(self)
+        menu.addAction("Editar nome",
+                       lambda: self._after(edit_name(self._app, self._game)))
+        menu.addAction("Editar plataforma",
+                       lambda: self._after(edit_platform(self._app, self._game)))
+        menu.addAction("Editar descrição",
+                       lambda: self._after(edit_description(self._app, self._game)))
+        menu.addAction("Editar avaliação",
+                       lambda: self._after(edit_rating(self._app, self._game)))
+        menu.exec(QCursor.pos())
+
+    def _after(self, changed: bool) -> None:
+        if changed:
+            self._rebuild()
+
+    def _edit_session(self, row: int, _col: int) -> None:
+        if 0 <= row < len(self._sessions):
+            if SessionEditDialog(self._app, self._sessions[row]).exec():
+                self._rebuild()
 
     def _remove(self) -> None:
         resp = QMessageBox.question(

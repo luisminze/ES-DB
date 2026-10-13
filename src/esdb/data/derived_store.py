@@ -39,8 +39,16 @@ CREATE INDEX IF NOT EXISTS idx_dsession_src ON d_session(source_path);
 CREATE TABLE IF NOT EXISTS game_override(
   source_path TEXT NOT NULL, external_id INTEGER NOT NULL,
   title_override TEXT, cover_override_path TEXT,
+  platform_override TEXT, description_override TEXT, rating_override REAL,
   PRIMARY KEY(source_path, external_id));
 """
+
+# Colunas adicionadas depois da versão inicial (migração idempotente).
+_OVERRIDE_COLUMNS = {
+    "platform_override": "TEXT",
+    "description_override": "TEXT",
+    "rating_override": "REAL",
+}
 
 
 class DerivedStore:
@@ -50,7 +58,15 @@ class DerivedStore:
         self._conn = sqlite3.connect(str(self.path))
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
+        self._migrate_override_columns()
         self._conn.commit()
+
+    def _migrate_override_columns(self) -> None:
+        have = {r[1] for r in self._conn.execute("PRAGMA table_info(game_override)")}
+        for col, typ in _OVERRIDE_COLUMNS.items():
+            if col not in have:
+                self._conn.execute(
+                    f"ALTER TABLE game_override ADD COLUMN {col} {typ}")
 
     def close(self) -> None:
         self._conn.close()
@@ -191,18 +207,54 @@ class DerivedStore:
     # -------------------------------------------------------- overrides
     def get_overrides(self, source_path: str) -> dict[int, dict]:
         rows = self._conn.execute(
-            "SELECT external_id, title_override, cover_override_path "
+            "SELECT external_id, title_override, cover_override_path, "
+            "platform_override, description_override, rating_override "
             "FROM game_override WHERE source_path=?", (source_path,))
-        return {r["external_id"]: {"title": r["title_override"],
-                                   "cover": r["cover_override_path"]} for r in rows}
+        return {r["external_id"]: {
+            "title": r["title_override"], "cover": r["cover_override_path"],
+            "platform": r["platform_override"],
+            "description": r["description_override"],
+            "rating": r["rating_override"]} for r in rows}
 
-    def set_override(self, source_path: str, external_id: int,
-                     title: str | None = None, cover: str | None = None) -> None:
+    def set_override(self, source_path: str, external_id: int, **fields) -> None:
+        """Define/atualiza campos de override. Chaves: title, cover, platform,
+        description, rating. Só os campos passados são alterados."""
+        col_map = {"title": "title_override", "cover": "cover_override_path",
+                   "platform": "platform_override",
+                   "description": "description_override",
+                   "rating": "rating_override"}
+        cur = self._conn.execute(
+            "SELECT title_override, cover_override_path, platform_override, "
+            "description_override, rating_override FROM game_override "
+            "WHERE source_path=? AND external_id=?",
+            (source_path, external_id)).fetchone()
+        vals = {"title": cur["title_override"] if cur else None,
+                "cover": cur["cover_override_path"] if cur else None,
+                "platform": cur["platform_override"] if cur else None,
+                "description": cur["description_override"] if cur else None,
+                "rating": cur["rating_override"] if cur else None}
+        for k, v in fields.items():
+            if k in col_map:
+                vals[k] = v
         self._conn.execute(
             "INSERT INTO game_override(source_path, external_id, title_override, "
-            "cover_override_path) VALUES(?,?,?,?) "
+            "cover_override_path, platform_override, description_override, "
+            "rating_override) VALUES(?,?,?,?,?,?,?) "
             "ON CONFLICT(source_path, external_id) DO UPDATE SET "
             "title_override=excluded.title_override, "
-            "cover_override_path=excluded.cover_override_path",
-            (source_path, external_id, title, cover))
+            "cover_override_path=excluded.cover_override_path, "
+            "platform_override=excluded.platform_override, "
+            "description_override=excluded.description_override, "
+            "rating_override=excluded.rating_override",
+            (source_path, external_id, vals["title"], vals["cover"],
+             vals["platform"], vals["description"], vals["rating"]))
+        self._conn.commit()
+
+    # ------------------------------------------------------------ sessões
+    def update_session(self, source_path: str, external_id: int,
+                       started_at: str, ended_at: str, duration: int) -> None:
+        self._conn.execute(
+            "UPDATE d_session SET started_at=?, ended_at=?, duration=? "
+            "WHERE source_path=? AND external_id=?",
+            (started_at, ended_at, duration, source_path, external_id))
         self._conn.commit()

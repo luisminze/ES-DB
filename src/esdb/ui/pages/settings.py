@@ -133,9 +133,10 @@ class SettingsPage(QWidget):
         self._heroic_box, heroic_lay = self._integration(
             "Heroic Games Launcher", app.config.heroic_enabled)
         heroic_lay.addWidget(QLabel(
-            "Gere os scripts e, no Heroic (Configurações → Avançado → Scripts, "
-            "globais ou por jogo), aponte o script “antes de iniciar” para "
-            "heroic-game-start.sh e o “depois de fechar” para heroic-game-end.sh."))
+            "Gere o wrapper e, no Heroic (Configurações → Avançado → “Wrapper”, "
+            "global ou por jogo), aponte para heroic-wrapper.sh. O wrapper roda "
+            "no ambiente do jogo e o identifica de forma confiável (inclusive "
+            "jogos sideload). Não use os scripts “antes/depois” para isto."))
         hdir_row = QHBoxLayout()
         hdir_row.addWidget(QLabel("Config do Heroic:"))
         self._heroic_edit = QLineEdit(

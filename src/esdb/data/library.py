@@ -6,6 +6,7 @@ simples; agregações usam a camada de domínio. Toda leitura é somente leitura
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, tzinfo
 
 from ..domain.calculations import Metrics, Period, compute_metrics
@@ -127,7 +128,18 @@ class Library:
             a = agg.get(gid, {})
             ov = overrides.get(gid, {})
             cover_path = ov.get("cover") or (str(cover) if cover else None)
-            platform = _platform_from_system(system, src.platform)  # type: ignore[attr-defined]
+            platform = ov.get("platform") or _platform_from_system(
+                system, src.platform)  # type: ignore[attr-defined]
+            # Overrides de descrição/avaliação sobrepõem os metadados do ES-DE.
+            if ov.get("description") is not None or ov.get("rating") is not None:
+                from ..domain.models import GameMetadata
+                mbase = meta or GameMetadata()
+                meta = replace(
+                    mbase,
+                    description=(ov["description"] if ov.get("description") is not None
+                                else mbase.description),
+                    rating=(ov["rating"] if ov.get("rating") is not None
+                            else mbase.rating))
             games.append(Game(
                 external_id=gid,
                 name=ov.get("title") or src.name,  # type: ignore[attr-defined]
@@ -155,6 +167,28 @@ class Library:
         """Remove um jogo da biblioteca (oculta; as sessões permanecem na fonte)."""
         self.store.set_hidden(self.session_db, game_id, True)
         self._build_games({g.id: g for g in self.store.load_games(self.session_db)})
+
+    def edit_game(self, game_id: int, **fields) -> None:
+        """Aplica overrides locais (title/platform/description/rating) e recarrega.
+        Não altera a fonte; vive no banco derivado."""
+        self.store.set_override(self.session_db, game_id, **fields)
+        self._build_games({g.id: g for g in self.store.load_games(self.session_db)})
+
+    def update_session(self, session_id: int, started_at: datetime,
+                       ended_at: datetime) -> int:
+        """Edita início/fim de uma sessão (na fonte e no derivado) e recarrega.
+        Retorna a nova duração em segundos."""
+        duration = max(0, int((ended_at - started_at).total_seconds()))
+        from ..esde.writer import update_session_row
+        update_session_row(self.session_db, session_id,
+                           started_at.isoformat(), ended_at.isoformat(), duration)
+        self.store.update_session(self.session_db, session_id,
+                                  started_at.isoformat(), ended_at.isoformat(),
+                                  duration)
+        # Recarrega sessões e agrega de novo.
+        self.sessions = self.store.load_sessions(self.session_db)
+        self._build_games({g.id: g for g in self.store.load_games(self.session_db)})
+        return duration
 
     def clear_game(self, game_id: int) -> bool:
         """Apaga **permanentemente** as sessões e o registro de um jogo e recarrega."""

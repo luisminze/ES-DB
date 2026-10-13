@@ -9,7 +9,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFrame,
                                QGridLayout, QHBoxLayout, QLabel, QPushButton,
-                               QScrollArea, QVBoxLayout, QWidget)
+                               QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
 
 from ...domain.calculations import format_duration
 from ...domain.models import Game
@@ -54,12 +54,13 @@ def _group_key(game: Game, by: str) -> str:
 class GameCard(QFrame):
     clicked = Signal(object)
 
-    def __init__(self, game: Game) -> None:
+    def __init__(self, game: Game, app=None) -> None:
         super().__init__()
         self.setObjectName("Card")
         self.setFixedWidth(CARD_W)
         self.setCursor(Qt.PointingHandCursor)
         self._game = game
+        self._app = app
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 12, 12, 12)
         lay.setSpacing(6)
@@ -68,7 +69,7 @@ class GameCard(QFrame):
         title = QLabel(game.display_title)
         title.setObjectName("CardTitle")
         title.setWordWrap(True)
-        title.setMaximumHeight(40)
+        title.setToolTip(game.display_title)
         lay.addWidget(title)
         meta = QLabel(game.platform)
         meta.setObjectName("CardMeta")
@@ -83,6 +84,12 @@ class GameCard(QFrame):
         if event.button() == Qt.LeftButton:
             self.clicked.emit(self._game)
         super().mousePressEvent(event)
+
+    def contextMenuEvent(self, event) -> None:  # noqa: N802
+        if self._app is None or self._app.library is None:
+            return
+        from .game_edit import build_context_menu
+        build_context_menu(self._app, self._game, self).exec(event.globalPos())
 
 
 class LibraryPage(QWidget):
@@ -193,6 +200,10 @@ class LibraryPage(QWidget):
             btn = QPushButton(label)
             btn.setObjectName("SideItem")
             btn.setCheckable(True)
+            btn.setToolTip(label)
+            # Ignora a largura do texto: ocupa a largura do painel (não força
+            # rolagem horizontal que cortava a 1ª letra) e elide no fim se longo.
+            btn.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
             btn.setChecked(value == current or (value is None and current is None))
             btn.clicked.connect(lambda _=False, v=value: self._pick_platform(v))
             self._plat_group.addButton(btn)
@@ -277,7 +288,7 @@ class LibraryPage(QWidget):
         cols = self._cols()
         self._columns = cols
         for idx, game in enumerate(games):
-            card = GameCard(game)
+            card = GameCard(game, self._app)
             card.clicked.connect(self._app.open_game)
             grid.addWidget(card, idx // cols, idx % cols)
         return host
@@ -294,7 +305,7 @@ class LibraryPage(QWidget):
         row.setSpacing(16)
         row.setAlignment(Qt.AlignLeft)
         for game in games:
-            card = GameCard(game)
+            card = GameCard(game, self._app)
             card.clicked.connect(self._app.open_game)
             row.addWidget(card)
         row.addStretch()
