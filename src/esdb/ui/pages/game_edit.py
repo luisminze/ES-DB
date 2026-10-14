@@ -142,37 +142,30 @@ class SessionEditDialog(QDialog):
         self.setWindowTitle("Editar sessão")
         self.setStyleSheet(app.window.styleSheet())
         self.setObjectName("Panel")
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(18, 18, 18, 18)
-        lay.setSpacing(8)
 
-        lay.addWidget(QLabel("Início:"))
-        self._start = QDateTimeEdit()
-        self._start.setDisplayFormat("dd/MM/yyyy HH:mm:ss")
-        self._start.setCalendarPopup(True)
+        # Layout vindo do Qt Designer (ui/designer/session_edit.ui); a lógica
+        # fica aqui. Edite o .ui no 'designer' para mudar a disposição.
+        from ..uiloader import load_ui
+        form = load_ui("session_edit.ui", self)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 16)
+        lay.addWidget(form)
+
+        self._start = form.findChild(QDateTimeEdit, "startEdit")
+        self._end = form.findChild(QDateTimeEdit, "endEdit")
+        self._dur = form.findChild(QLabel, "durationLabel")
+        buttons = form.findChild(QDialogButtonBox, "buttonBox")
+
         self._start.setDateTime(QDateTime.fromSecsSinceEpoch(
             int(session.started_at.timestamp())))
-        lay.addWidget(self._start)
-
-        lay.addWidget(QLabel("Fim:"))
-        self._end = QDateTimeEdit()
-        self._end.setDisplayFormat("dd/MM/yyyy HH:mm:ss")
-        self._end.setCalendarPopup(True)
         self._end.setDateTime(QDateTime.fromSecsSinceEpoch(
             int(session.ended_at.timestamp())))
-        lay.addWidget(self._end)
-
-        self._dur = QLabel()
-        self._dur.setObjectName("CardMeta")
-        lay.addWidget(self._dur)
         self._start.dateTimeChanged.connect(self._update_dur)
         self._end.dateTimeChanged.connect(self._update_dur)
         self._update_dur()
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
-        lay.addWidget(buttons)
 
     def _secs(self) -> int:
         return max(0, self._end.dateTime().toSecsSinceEpoch()

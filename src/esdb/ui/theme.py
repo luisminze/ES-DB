@@ -46,9 +46,70 @@ LIGHT = {
 
 _ACTIVE: dict[str, str] = DARK
 
+# Chaves de cor editáveis pelo usuário (editor de tema). Rótulos amigáveis.
+EDITABLE = {
+    "accent": "Acento (destaque)",
+    "on_accent": "Texto sobre o acento",
+    "accent_dim": "Acento esmaecido",
+    "accent_wash": "Fundo com tom de acento",
+    "select": "Seleção",
+    "chrome_bg": "Barra — fundo",
+    "chrome_surface": "Barra — superfície",
+    "panel_bg": "Painel — fundo",
+    "panel_surface": "Painel — superfície",
+    "panel_surface_2": "Painel — superfície 2",
+    "text": "Texto",
+    "text_dim": "Texto esmaecido",
+    "text_faint": "Texto fraco",
+    "border": "Borda",
+}
+
+
+def _overrides_path():
+    from ..config import stats_home
+    return stats_home() / "theme.json"
+
+
+def load_overrides() -> dict:
+    import json
+    try:
+        return json.loads(_overrides_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_overrides(theme_key: str, values: dict) -> None:
+    """Salva as cores personalizadas de um tema ('dark'/'light')."""
+    import json
+    data = load_overrides()
+    data[theme_key] = {k: v for k, v in values.items() if k in EDITABLE}
+    path = _overrides_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def reset_overrides(theme_key: str) -> None:
+    import json
+    data = load_overrides()
+    data.pop(theme_key, None)
+    _overrides_path().write_text(json.dumps(data, indent=2, ensure_ascii=False),
+                                 encoding="utf-8")
+
+
+def base_palette(theme: str) -> dict[str, str]:
+    """Paleta padrão (sem personalização), p/ o editor mostrar o default."""
+    return LIGHT if resolve_theme(theme) == "light" else DARK
+
 
 def palette(theme: str) -> dict[str, str]:
-    return LIGHT if resolve_theme(theme) == "light" else DARK
+    light = resolve_theme(theme) == "light"
+    base = LIGHT if light else DARK
+    ov = load_overrides().get("light" if light else "dark", {})
+    merged = dict(base)
+    merged["__light__"] = light
+    if ov:
+        merged.update({k: v for k, v in ov.items() if k in base})
+    return merged
 
 
 def resolve_theme(theme: str) -> str:
@@ -84,7 +145,7 @@ def active() -> dict[str, str]:
 
 
 def is_light() -> bool:
-    return _ACTIVE is LIGHT
+    return bool(_ACTIVE.get("__light__", _ACTIVE is LIGHT))
 
 
 def build_qss(p: dict[str, str]) -> str:

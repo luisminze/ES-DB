@@ -42,7 +42,11 @@ class SettingsPage(QWidget):
         self._theme.setCurrentIndex(idx if idx >= 0 else 1)
         hint_sys = QLabel("(Sistema segue o tema do seu SO automaticamente)")
         hint_sys.setObjectName("CardMeta")
+        edit_colors = QPushButton("Editar cores…")
+        edit_colors.setObjectName("ChromeBtn")
+        edit_colors.clicked.connect(self._edit_theme_colors)
         theme_row.addWidget(self._theme)
+        theme_row.addWidget(edit_colors)
         theme_row.addWidget(hint_sys)
         theme_row.addStretch()
         self._lay.addLayout(theme_row)
@@ -377,6 +381,10 @@ class SettingsPage(QWidget):
         self._heroic_status.setText(
             f"✓ Wrapper e mapa gerados → banco {db}\n"
             f"• {written[0]}\n• {mp} (editável: executável → jogo)")
+
+    def _edit_theme_colors(self) -> None:
+        from .theme_editor import ThemeEditorDialog
+        ThemeEditorDialog(self._app).exec()
 
     def _regen_heroic_map(self) -> None:
         from ...esde.heroic import write_games_map

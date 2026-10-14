@@ -41,6 +41,25 @@ O script empacota o app com PyInstaller (incl. PySide6), monta o AppDir com íco
 e `.desktop` e gera o AppImage com o `appimagetool` (baixado automaticamente).
 Depois, basta `chmod +x dist/ActivityPlayTime-x86_64.AppImage && ./dist/ActivityPlayTime-x86_64.AppImage`.
 
+## Editar a interface
+
+A interface é escrita em **PySide6** (Python). Duas formas visuais de editar:
+
+- **Cores/tema ao vivo**: no app, *Configurações → Tema → “Editar cores…”*. Ajusta
+  a paleta com seletor de cor e aplica na hora; salva em `~/ActivityPlayTime/theme.json`
+  (um bloco por tema, `dark`/`light`). Código: [ui/theme.py](src/esdb/ui/theme.py),
+  [ui/pages/theme_editor.py](src/esdb/ui/pages/theme_editor.py).
+- **Formulários no Qt Designer**: telas estáticas podem ser desenhadas no
+  `designer` e salvas em [src/esdb/ui/designer/](src/esdb/ui/designer/) (`.ui`),
+  carregadas por [ui/uiloader.py](src/esdb/ui/uiloader.py). Exemplo pronto:
+  `session_edit.ui` (diálogo de edição de sessão). Abra com:
+
+  ```bash
+  designer src/esdb/ui/designer/session_edit.ui
+  ```
+
+  As partes dinâmicas (grade de jogos, gráficos, tabelas) continuam em código.
+
 ## Testes
 
 ```bash
