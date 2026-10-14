@@ -70,7 +70,7 @@ def test_heroic_wrapper_records(tmp_path):
     for n in ("legendary_library", "gog_library", "nile_library"):
         json.dump({"library": []}, open(hdir / "store_cache" / f"{n}.json", "w"))
     db = tmp_path / "database" / "games.db"
-    (wrapper,) = install_heroic_scripts(tmp_path / "hs", db)
+    (wrapper,) = install_heroic_scripts(tmp_path / "hs", db, hdir)
     env = dict(os.environ, HEROIC_CONFIG_DIR=str(hdir), HEROIC_APP_NAME="APP1",
                HEROIC_APP_RUNNER="sideload", HEROIC_APP_SOURCE="")
     rc = subprocess.run(["bash", str(wrapper), "true"], env=env)
@@ -79,6 +79,32 @@ def test_heroic_wrapper_records(tmp_path):
     row = conn.execute("SELECT name, platform, system FROM games").fetchone()
     conn.close()
     assert row == ("Jogo X", "PC (Windows)", "heroic:store=windows")
+
+
+def test_heroic_wrapper_uses_games_map(tmp_path):
+    """O wrapper identifica pelo mapa games.json (executável → jogo)."""
+    import json
+    hdir = tmp_path / "heroic"
+    (hdir / "sideload_apps").mkdir(parents=True)
+    (hdir / "store_cache").mkdir()
+    for n in ("legendary_library", "gog_library", "nile_library"):
+        json.dump({"library": []}, open(hdir / "store_cache" / f"{n}.json", "w"))
+    json.dump({"games": []}, open(hdir / "sideload_apps" / "library.json", "w"))
+    db = tmp_path / "database" / "games.db"
+    scripts = tmp_path / "hs"
+    (wrapper,) = install_heroic_scripts(scripts, db, hdir)
+    # mapa manual: executável -> jogo/plataforma
+    json.dump({"meujogo.exe": {"name": "Meu Jogo", "platform": "PC (Epic Games)"}},
+              open(scripts / "games.json", "w"))
+    env = dict(os.environ, HEROIC_CONFIG_DIR=str(hdir))
+    env.pop("HEROIC_APP_NAME", None)
+    rc = subprocess.run(
+        ["bash", str(wrapper), "true", "C:/x/MeuJogo.exe"], env=env)
+    assert rc.returncode == 0
+    conn = sqlite3.connect(str(db))
+    row = conn.execute("SELECT name, platform FROM games").fetchone()
+    conn.close()
+    assert row == ("Meu Jogo", "PC (Epic Games)")
 
 
 def test_delete_and_recalc_session(tmp_path):

@@ -47,6 +47,56 @@ def platform_from_tag(system: str | None) -> str | None:
     return pc_platform(store, store)
 
 
+def _store_for(g: dict) -> str:
+    st = RUNNER_STORE.get(g.get("runner", ""), "")
+    if not st:
+        pl = ((g.get("install") or {}).get("platform") or "Windows").lower()
+        st = "linux" if "linux" in pl else "windows"
+    return st
+
+
+def build_games_map(heroic_dir: str | Path | None) -> dict[str, dict]:
+    """Mapa ``executável (minúsculo) → {name, platform}`` das bibliotecas do
+    Heroic. É o que o wrapper consulta para identificar o jogo pelo executável."""
+    base = Path(heroic_dir) if heroic_dir else default_heroic_dir()
+    out: dict[str, dict] = {}
+    if base is None:
+        return out
+    libs = [base / "store_cache" / "legendary_library.json",
+            base / "store_cache" / "gog_library.json",
+            base / "store_cache" / "nile_library.json",
+            base / "sideload_apps" / "library.json"]
+    for lib in libs:
+        for g in _iter_library(lib):
+            exe = (g.get("install") or {}).get("executable")
+            if not exe:
+                continue
+            key = Path(str(exe).replace("\\", "/")).name.lower()
+            if not key:
+                continue
+            out[key] = {"name": g.get("title") or key,
+                        "platform": pc_platform(_store_for(g), _store_for(g))}
+    return out
+
+
+def write_games_map(map_path: str | Path, heroic_dir: str | Path | None) -> int:
+    """(Re)gera o mapa em ``map_path`` mesclando com o existente (entradas que o
+    usuário editou/adicionou são preservadas). Retorna o total de entradas."""
+    path = Path(map_path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    generated = build_games_map(heroic_dir)
+    existing: dict[str, dict] = {}
+    if path.is_file():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+    merged = {**generated, **existing}  # edições do usuário têm prioridade
+    path.write_text(json.dumps(merged, indent=2, ensure_ascii=False),
+                    encoding="utf-8")
+    return len(merged)
+
+
 def install_wrapper_in_game_configs(heroic_dir: str | Path | None,
                                     wrapper_path: str | Path) -> list[str]:
     """Garante o wrapper em TODOS os jogos do Heroic.

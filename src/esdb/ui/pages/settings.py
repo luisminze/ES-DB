@@ -148,11 +148,14 @@ class SettingsPage(QWidget):
         hdir_row.addWidget(hbrowse)
         heroic_lay.addLayout(hdir_row)
         heroic_lay.addWidget(QLabel(
-            "Jogos com configuração própria no Heroic não herdam o wrapper global. "
-            "Use “Aplicar aos jogos” para garantir o wrapper em todos (reinicie o "
-            "Heroic depois). Repita ao adicionar jogos novos."))
+            "O wrapper identifica os jogos por um mapa editável "
+            "(heroic/games.json: executável → jogo). “Gerar mapa” (re)cria a "
+            "partir da sua biblioteca do Heroic, preservando o que você editou. "
+            "“Aplicar aos jogos” garante o wrapper em jogos com config própria "
+            "(reinicie o Heroic depois)."))
         hrow = QHBoxLayout()
         for text, slot in (("Instalar wrapper", self._install_heroic),
+                           ("Gerar mapa", self._regen_heroic_map),
                            ("Aplicar aos jogos", self._apply_heroic_games),
                            ("Remover wrapper", self._remove_heroic)):
             b = QPushButton(text)
@@ -364,14 +367,29 @@ class SettingsPage(QWidget):
         if not db:
             self._heroic_status.setText("✕ Selecione um banco de sessões.")
             return
+        hdir = self._heroic_edit.text().strip() or None
         try:
-            written = install_heroic_scripts(self._heroic_scripts_dir(), db)
+            written = install_heroic_scripts(self._heroic_scripts_dir(), db, hdir)
         except OSError as exc:
             self._heroic_status.setText(f"✕ Erro ao gerar: {exc}")
             return
-        paths = "\n".join(f"• {p}" for p in written)
+        mp = self._heroic_scripts_dir() / "games.json"
         self._heroic_status.setText(
-            f"✓ Scripts do Heroic gerados → banco {db}\n{paths}")
+            f"✓ Wrapper e mapa gerados → banco {db}\n"
+            f"• {written[0]}\n• {mp} (editável: executável → jogo)")
+
+    def _regen_heroic_map(self) -> None:
+        from ...esde.heroic import write_games_map
+        mp = self._heroic_scripts_dir() / "games.json"
+        hdir = self._heroic_edit.text().strip() or None
+        try:
+            n = write_games_map(mp, hdir)
+        except OSError as exc:
+            self._heroic_status.setText(f"✕ Erro ao gerar o mapa: {exc}")
+            return
+        self._heroic_status.setText(
+            f"✓ Mapa com {n} jogo(s) em {mp}. Edite-o para ajustar nomes/"
+            "plataformas ou adicionar jogos manualmente (executável → jogo).")
 
     def _apply_heroic_games(self) -> None:
         from ...esde.heroic import install_wrapper_in_game_configs
