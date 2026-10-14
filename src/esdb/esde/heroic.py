@@ -47,6 +47,53 @@ def platform_from_tag(system: str | None) -> str | None:
     return pc_platform(store, store)
 
 
+def install_wrapper_in_game_configs(heroic_dir: str | Path | None,
+                                    wrapper_path: str | Path) -> list[str]:
+    """Garante o wrapper em TODOS os jogos do Heroic.
+
+    Jogos com config própria (``explicit: true``) não herdam o wrapper global, só
+    rodam o que está em ``wrapperOptions`` do próprio jogo. Esta função injeta o
+    wrapper (idempotente) em cada ``GamesConfig/<app>.json``. Retorna os app_names
+    atualizados. O Heroic deve ser reiniciado para reler os arquivos."""
+    base = Path(heroic_dir) if heroic_dir else default_heroic_dir()
+    if base is None:
+        return []
+    gc = base / "GamesConfig"
+    if not gc.is_dir():
+        return []
+    wrapper = str(wrapper_path)
+    entry = {"exe": wrapper, "args": ""}
+    updated: list[str] = []
+    for f in sorted(gc.glob("*.json")):
+        if f.name == "default.json":
+            continue
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        changed = False
+        for key, val in data.items():
+            if not isinstance(val, dict):
+                continue
+            wo = val.get("wrapperOptions")
+            lst = list(wo) if isinstance(wo, list) else []
+            if any(isinstance(x, dict) and x.get("exe") == wrapper for x in lst):
+                continue  # já tem o wrapper
+            # remove wrappers antigos do ActivityPlayTime e adiciona o atual
+            lst = [x for x in lst if not (isinstance(x, dict)
+                   and "ActivityPlayTime" in str(x.get("exe", "")))]
+            lst.append(entry)
+            val["wrapperOptions"] = lst
+            changed = True
+        if changed:
+            try:
+                f.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                updated.append(f.stem)
+            except OSError:
+                continue
+    return updated
+
+
 def _iter_library(path: Path):
     try:
         data = json.loads(path.read_text(encoding="utf-8"))

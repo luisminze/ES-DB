@@ -109,3 +109,25 @@ def test_sync_launcher_rows_normalizes_and_merges(tmp_path):
     sess = conn.execute("SELECT COUNT(*) FROM sessions WHERE game_id=11").fetchone()[0]
     conn.close()
     assert n == 1 and sess == 2
+
+
+def test_heroic_wrapper_injection(tmp_path):
+    import json
+    from esdb.esde.heroic import install_wrapper_in_game_configs
+    gc = tmp_path / "heroic" / "GamesConfig"
+    gc.mkdir(parents=True)
+    # jogo com config própria SEM wrapper
+    (gc / "APP1.json").write_text(json.dumps(
+        {"APP1": {"winePrefix": "/x"}, "version": "v0", "explicit": True}))
+    # jogo que já tem o wrapper (idempotência)
+    w = str(tmp_path / "heroic" / "heroic-wrapper.sh")
+    (gc / "APP2.json").write_text(json.dumps(
+        {"APP2": {"wrapperOptions": [{"exe": w, "args": ""}]},
+         "version": "v0", "explicit": True}))
+    (gc / "default.json").write_text("{}")
+    updated = install_wrapper_in_game_configs(tmp_path / "heroic", w)
+    assert updated == ["APP1"]  # só o que faltava
+    d = json.loads((gc / "APP1.json").read_text())
+    assert d["APP1"]["wrapperOptions"] == [{"exe": w, "args": ""}]
+    # roda de novo: nada muda
+    assert install_wrapper_in_game_configs(tmp_path / "heroic", w) == []

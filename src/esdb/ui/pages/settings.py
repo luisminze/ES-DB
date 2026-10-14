@@ -147,9 +147,14 @@ class SettingsPage(QWidget):
         hdir_row.addWidget(self._heroic_edit, 1)
         hdir_row.addWidget(hbrowse)
         heroic_lay.addLayout(hdir_row)
+        heroic_lay.addWidget(QLabel(
+            "Jogos com configuração própria no Heroic não herdam o wrapper global. "
+            "Use “Aplicar aos jogos” para garantir o wrapper em todos (reinicie o "
+            "Heroic depois). Repita ao adicionar jogos novos."))
         hrow = QHBoxLayout()
-        for text, slot in (("Instalar scripts", self._install_heroic),
-                           ("Remover scripts", self._remove_heroic)):
+        for text, slot in (("Instalar wrapper", self._install_heroic),
+                           ("Aplicar aos jogos", self._apply_heroic_games),
+                           ("Remover wrapper", self._remove_heroic)):
             b = QPushButton(text)
             b.setObjectName("ChromeBtn")
             b.clicked.connect(slot)
@@ -367,6 +372,19 @@ class SettingsPage(QWidget):
         paths = "\n".join(f"• {p}" for p in written)
         self._heroic_status.setText(
             f"✓ Scripts do Heroic gerados → banco {db}\n{paths}")
+
+    def _apply_heroic_games(self) -> None:
+        from ...esde.heroic import install_wrapper_in_game_configs
+        wrapper = self._heroic_scripts_dir() / "heroic-wrapper.sh"
+        if not wrapper.is_file():
+            self._heroic_status.setText("✕ Gere o wrapper primeiro (Instalar wrapper).")
+            return
+        hdir = self._heroic_edit.text().strip() or None
+        updated = install_wrapper_in_game_configs(hdir, wrapper)
+        self._heroic_status.setText(
+            f"✓ Wrapper aplicado a {len(updated)} jogo(s) do Heroic. "
+            "Reinicie o Heroic para valer." if updated
+            else "Todos os jogos do Heroic já têm o wrapper.")
 
     def _remove_heroic(self) -> None:
         removed = remove_heroic_scripts(self._heroic_scripts_dir())
