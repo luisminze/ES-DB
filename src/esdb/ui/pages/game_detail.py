@@ -24,7 +24,14 @@ class GameDetailDialog(QDialog):
         self.resize(760, 680)
         self.setObjectName("Panel")
         self.setStyleSheet(app.window.styleSheet())
-        self._root = QVBoxLayout(self)
+        # Moldura do Qt Designer (ui/designer/game_detail.ui) com placeholder.
+        from ..uiloader import load_ui
+        form = load_ui("game_detail.ui", self)
+        shell = QVBoxLayout(self)
+        shell.setContentsMargins(0, 0, 0, 0)
+        shell.addWidget(form)
+        host = form.findChild(QWidget, "pageContent")
+        self._root = QVBoxLayout(host)
         self._root.setContentsMargins(20, 20, 20, 20)
         self._root.setSpacing(14)
         self._rebuild()

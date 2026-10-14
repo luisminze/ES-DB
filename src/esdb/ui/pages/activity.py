@@ -9,8 +9,8 @@ from datetime import datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QButtonGroup, QFrame, QHBoxLayout, QLabel,
-                               QPushButton, QTableWidget, QTableWidgetItem,
-                               QVBoxLayout, QWidget)
+                               QPushButton, QScrollArea, QTableWidget,
+                               QTableWidgetItem, QVBoxLayout, QWidget)
 
 from ...domain.calculations import format_duration
 from ...domain.models import DurationKind
@@ -27,26 +27,24 @@ class ActivityPage(QWidget):
         super().__init__()
         self._app = app
         self._mode = "feed"
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(12)
+        # Tela do Qt Designer (ui/designer/activity.ui): barra + área rolável.
+        from ..uiloader import load_ui
+        form = load_ui("activity.ui", self)
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.addWidget(form)
+        self._area = form.findChild(QScrollArea, "scroll")
+        self._content = form.findChild(QWidget, "ScrollBody")
+        self._lay = self._content.layout()
 
-        toggle = QHBoxLayout()
         self._group = QButtonGroup(self)
-        for key, label in (("feed", "Feed"), ("sessions", "Sessões")):
-            btn = QPushButton(label)
-            btn.setObjectName("ChromeBtn")
-            btn.setCheckable(True)
+        for key, name in (("feed", "feedBtn"), ("sessions", "sessionsBtn")):
+            btn = form.findChild(QPushButton, name)
+            btn.setObjectName("ChromeBtn")  # estilo (QSS); nome do .ui era p/ achar
             btn.clicked.connect(lambda _=False, k=key: self._set_mode(k))
             self._group.addButton(btn)
-            toggle.addWidget(btn)
             if key == "feed":
                 btn.setChecked(True)
-        toggle.addStretch()
-        outer.addLayout(toggle)
-
-        self._area, self._content, self._lay = scroll_container()
-        outer.addWidget(self._area)
 
     def _set_mode(self, mode: str) -> None:
         self._mode = mode

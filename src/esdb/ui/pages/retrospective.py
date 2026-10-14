@@ -16,7 +16,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (QBrush, QColor, QFont, QLinearGradient, QPainter,
                            QPainterPath, QPen, QPolygonF)
 from PySide6.QtWidgets import (QComboBox, QFrame, QGridLayout, QHBoxLayout,
-                               QLabel, QVBoxLayout, QWidget)
+                               QLabel, QScrollArea, QVBoxLayout, QWidget)
 
 from ...domain.calculations import (Metrics, format_duration, split_by_day,
                                     split_by_month)
@@ -358,18 +358,17 @@ class RetrospectivePage(QWidget):
         self._app = app
         self._year: int | None = None
         self._accent = palette(app.config.theme)["accent"]
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(12)
-        bar = QHBoxLayout()
-        bar.addStretch()
-        bar.addWidget(QLabel("Ano:"))
-        self._year_combo = QComboBox()
+        # Tela do Qt Designer (ui/designer/retrospective.ui).
+        from ..uiloader import load_ui
+        form = load_ui("retrospective.ui", self)
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.addWidget(form)
+        self._area = form.findChild(QScrollArea, "scroll")
+        self._content = form.findChild(QWidget, "ScrollBody")
+        self._lay = self._content.layout()
+        self._year_combo = form.findChild(QComboBox, "yearCombo")
         self._year_combo.currentTextChanged.connect(self._on_year)
-        bar.addWidget(self._year_combo)
-        outer.addLayout(bar)
-        self._area, self._content, self._lay = scroll_container()
-        outer.addWidget(self._area)
 
     def _on_year(self, text: str) -> None:
         if text.isdigit():

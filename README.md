@@ -49,16 +49,21 @@ A interface é escrita em **PySide6** (Python). Duas formas visuais de editar:
   a paleta com seletor de cor e aplica na hora; salva em `~/ActivityPlayTime/theme.json`
   (um bloco por tema, `dark`/`light`). Código: [ui/theme.py](src/esdb/ui/theme.py),
   [ui/pages/theme_editor.py](src/esdb/ui/pages/theme_editor.py).
-- **Formulários no Qt Designer**: telas estáticas podem ser desenhadas no
-  `designer` e salvas em [src/esdb/ui/designer/](src/esdb/ui/designer/) (`.ui`),
-  carregadas por [ui/uiloader.py](src/esdb/ui/uiloader.py). Exemplo pronto:
-  `session_edit.ui` (diálogo de edição de sessão). Abra com:
+- **Telas no Qt Designer**: **todas as telas** têm um `.ui` em
+  [src/esdb/ui/designer/](src/esdb/ui/designer/), carregado por
+  [ui/uiloader.py](src/esdb/ui/uiloader.py). Cada `.ui` traz a **moldura
+  estática** (barras, botões, campos) e um **contêiner nomeado** (`pageContent`
+  ou `ScrollBody`) que o código preenche com o conteúdo dinâmico (grade de jogos,
+  gráficos, tabelas). Abra qualquer uma no Designer:
 
   ```bash
-  designer src/esdb/ui/designer/session_edit.ui
+  designer src/esdb/ui/designer/library.ui     # ou settings.ui, statistics.ui…
   ```
 
-  As partes dinâmicas (grade de jogos, gráficos, tabelas) continuam em código.
+  Ao salvar no Designer, o app recarrega o layout; a lógica continua no Python.
+  Para **criar uma tela nova**: desenhe um `.ui`, salve nessa pasta e no código
+  use `form = load_ui("minha.ui", self)` + `form.findChild(...)` para pegar os
+  widgets por nome.
 
 ## Testes
 

@@ -74,7 +74,14 @@ class AchievementsPage(QWidget):
         self._games: list[GameAchievements] = []
         self._selected: GameAchievements | None = None
 
-        outer = QVBoxLayout(self)
+        # Moldura do Qt Designer (ui/designer/achievements.ui) com placeholder.
+        from ..uiloader import load_ui
+        form = load_ui("achievements.ui", self)
+        _root = QVBoxLayout(self)
+        _root.setContentsMargins(0, 0, 0, 0)
+        _root.addWidget(form)
+        host = form.findChild(QWidget, "pageContent")
+        outer = QVBoxLayout(host)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(12)
 

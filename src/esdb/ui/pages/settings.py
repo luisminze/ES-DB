@@ -18,17 +18,14 @@ from ...esde.writer import (create_database, heroic_scripts_installed,
                             remove_heroic_scripts, remove_lutris_scripts,
                             remove_scripts, scripts_installed)
 from ..widgets import section_title
-from .base import scroll_container
+from .base import page_scaffold
 
 
 class SettingsPage(QWidget):
     def __init__(self, app) -> None:
         super().__init__()
         self._app = app
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        self._area, self._content, self._lay = scroll_container()
-        outer.addWidget(self._area)
+        self._area, self._content, self._lay = page_scaffold(self, "settings.ui")
 
         # ----------------------------------------------------------- Tema
         self._lay.addWidget(section_title("Tema"))

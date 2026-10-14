@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QGridLayout, QTableWidget, QTableWidgetItem,
 
 from ...domain.models import DurationKind
 from ..widgets import section_title, stat_tile
-from .base import clear_layout, empty_label, scroll_container
+from .base import clear_layout, empty_label, page_scaffold
 
 _LABELS = {
     "duplicate_id": "IDs duplicados",
@@ -25,10 +25,7 @@ class IntegrityPage(QWidget):
     def __init__(self, app) -> None:
         super().__init__()
         self._app = app
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        self._area, self._content, self._lay = scroll_container()
-        outer.addWidget(self._area)
+        self._area, self._content, self._lay = page_scaffold(self, "integrity.ui")
 
     def update_view(self) -> None:
         clear_layout(self._lay)

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AchievementsForm</class>
+ <widget class="QWidget" name="AchievementsForm">
+  <layout class="QVBoxLayout" name="outer">
+   <property name="spacing"><number>0</number></property>
+   <property name="leftMargin"><number>0</number></property>
+   <property name="topMargin"><number>0</number></property>
+   <property name="rightMargin"><number>0</number></property>
+   <property name="bottomMargin"><number>0</number></property>
+   <item>
+    <widget class="QWidget" name="pageContent" native="true"/>
+   </item>
+  </layout>
+ </widget>
+ <resources/><connections/>
+</ui>

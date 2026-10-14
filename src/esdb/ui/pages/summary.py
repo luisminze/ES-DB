@@ -15,7 +15,7 @@ from ...domain.periods import year_period
 from ...domain.year_review import available_years, compute_year_review
 from ..charts import SEGMENT_COLORS, RingChart
 from ..widgets import cover_fit_label, ranking_list, section_title, stat_tile
-from .base import clear_layout, empty_label, scroll_container
+from .base import clear_layout, empty_label, page_scaffold
 
 _PLATFORM_COLOR = {"RPCS3": "#4A90D9", "Xenia": "#4FB15A", "shadPS4": "#7C5CCB"}
 
@@ -24,10 +24,7 @@ class SummaryPage(QWidget):
     def __init__(self, app) -> None:
         super().__init__()
         self._app = app
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        self._area, self._content, self._lay = scroll_container()
-        outer.addWidget(self._area)
+        self._area, self._content, self._lay = page_scaffold(self, "summary.ui")
 
     def update_view(self) -> None:
         clear_layout(self._lay)

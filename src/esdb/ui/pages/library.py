@@ -103,7 +103,14 @@ class LibraryPage(QWidget):
         self._panel_visible = True
         self._games: list[Game] = []
 
-        outer = QVBoxLayout(self)
+        # Moldura do Qt Designer (ui/designer/library.ui) com placeholder.
+        from ..uiloader import load_ui
+        form = load_ui("library.ui", self)
+        _root = QVBoxLayout(self)
+        _root.setContentsMargins(0, 0, 0, 0)
+        _root.addWidget(form)
+        host = form.findChild(QWidget, "pageContent")
+        outer = QVBoxLayout(host)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(10)
         outer.addLayout(self._build_toolbar())

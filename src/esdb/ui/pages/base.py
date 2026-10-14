@@ -35,6 +35,22 @@ def scroll_container() -> tuple[QScrollArea, QWidget, QVBoxLayout]:
     return area, content, lay
 
 
+def page_scaffold(page: QWidget, ui_name: str
+                  ) -> tuple[QScrollArea, QWidget, QVBoxLayout]:
+    """Monta a tela a partir de ``ui/designer/<ui_name>`` (editável no Qt
+    Designer) dentro de ``page`` e devolve ``(area, content, lay)`` — igual ao
+    :func:`scroll_container`, mas o layout vem do ``.ui``. A tela precisa ter um
+    ``QScrollArea`` chamado ``scroll`` e, dentro, um ``QWidget`` ``ScrollBody``."""
+    from ..uiloader import load_ui
+    form = load_ui(ui_name, page)
+    outer = QVBoxLayout(page)
+    outer.setContentsMargins(0, 0, 0, 0)
+    outer.addWidget(form)
+    area = form.findChild(QScrollArea, "scroll")
+    content = form.findChild(QWidget, "ScrollBody")
+    return area, content, content.layout()
+
+
 def empty_label(text: str) -> QLabel:
     lab = QLabel(text)
     lab.setObjectName("CardMeta")
