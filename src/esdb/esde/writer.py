@@ -108,6 +108,54 @@ def update_session_row(db_path: str | Path, session_id: int, start: str,
     return changed > 0
 
 
+def delete_session_row(db_path: str | Path, session_id: int) -> bool:
+    """Apaga uma sessão específica do banco de sessões."""
+    target = Path(db_path).expanduser()
+    if not target.is_file():
+        return False
+    conn = sqlite3.connect(str(target))
+    try:
+        changed = conn.execute(
+            "DELETE FROM sessions WHERE id=?", (session_id,)).rowcount
+        conn.commit()
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        conn.close()
+    return changed > 0
+
+
+def recalc_sessions(db_path: str | Path, game_id: int) -> int:
+    """Recalcula ``duration`` = (fim − início) de todas as sessões de um jogo e
+    retorna o tempo total (segundos). Sincroniza o playtime com os horários."""
+    from datetime import datetime
+
+    target = Path(db_path).expanduser()
+    if not target.is_file():
+        return 0
+    conn = sqlite3.connect(str(target))
+    total = 0
+    try:
+        rows = conn.execute(
+            "SELECT id, start_time, end_time FROM sessions WHERE game_id=?",
+            (game_id,)).fetchall()
+        for sid, start, end in rows:
+            try:
+                dur = int((datetime.fromisoformat(end)
+                           - datetime.fromisoformat(start)).total_seconds())
+            except (ValueError, TypeError):
+                dur = 0
+            dur = max(0, dur)
+            conn.execute("UPDATE sessions SET duration=? WHERE id=?", (dur, sid))
+            total += dur
+        conn.commit()
+    except sqlite3.OperationalError:
+        return 0
+    finally:
+        conn.close()
+    return total
+
+
 def clear_all_data(db_path: str | Path) -> bool:
     """Apaga **permanentemente** todas as sessões e jogos do banco de sessões."""
     target = Path(db_path).expanduser()

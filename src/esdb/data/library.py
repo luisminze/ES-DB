@@ -190,6 +190,22 @@ class Library:
         self._build_games({g.id: g for g in self.store.load_games(self.session_db)})
         return duration
 
+    def delete_session(self, session_id: int) -> None:
+        """Apaga uma sessão específica (fonte + derivado) e recarrega."""
+        from ..esde.writer import delete_session_row
+        delete_session_row(self.session_db, session_id)
+        self.store.reset_source(self.session_db)
+        self.load()
+
+    def recalc_sessions(self, game_id: int) -> int:
+        """Recalcula a duração de todas as sessões do jogo a partir dos horários
+        (sincroniza o playtime) e recarrega. Retorna o novo total em segundos."""
+        from ..esde.writer import recalc_sessions
+        total = recalc_sessions(self.session_db, game_id)
+        self.store.reset_source(self.session_db)
+        self.load()
+        return total
+
     def clear_game(self, game_id: int) -> bool:
         """Apaga **permanentemente** as sessões e o registro de um jogo e recarrega."""
         from ..esde.writer import clear_game_data

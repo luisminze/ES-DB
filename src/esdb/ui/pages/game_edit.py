@@ -8,11 +8,12 @@ do início/fim de cada sessão.
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
 from PySide6.QtCore import QDateTime, Qt
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QDateTimeEdit,
-                               QInputDialog, QLabel, QMenu, QMessageBox,
-                               QVBoxLayout)
+                               QFileDialog, QInputDialog, QLabel, QMenu,
+                               QMessageBox, QVBoxLayout)
 
 from ...domain.calculations import format_duration
 
@@ -64,6 +65,38 @@ def edit_rating(app, game) -> bool:
     return False
 
 
+def edit_cover(app, game) -> bool:
+    start = str(Path(game.cover_path).parent) if game.cover_path else str(Path.home())
+    path, _ = QFileDialog.getOpenFileName(
+        app.window, "Escolher capa personalizada", start,
+        "Imagens (*.png *.jpg *.jpeg *.webp *.bmp *.gif)")
+    if path:
+        app.library.edit_game(game.external_id, cover=path)
+        app.refresh_pages()
+        return True
+    return False
+
+
+def reset_cover(app, game) -> bool:
+    app.library.edit_game(game.external_id, cover=None)
+    app.refresh_pages()
+    return True
+
+
+def remove_game(app, game) -> bool:
+    resp = QMessageBox.question(
+        app.window, "Remover jogo",
+        f"Remover “{game.display_title}” da biblioteca?\n\n"
+        "O jogo deixa de aparecer; as sessões são mantidas e ele reaparece se "
+        "voltar a ser jogado.",
+        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+    if resp != QMessageBox.Yes:
+        return False
+    app.library.hide_game(game.external_id)
+    app.refresh_pages()
+    return True
+
+
 def clear_game(app, game) -> bool:
     resp = QMessageBox.warning(
         app.window, "Limpar dados do jogo",
@@ -78,16 +111,25 @@ def clear_game(app, game) -> bool:
 
 
 def build_context_menu(app, game, parent=None) -> QMenu:
-    """Menu de contexto do jogo: Editar (submenu) + Limpar dados."""
+    """Menu de contexto do jogo: Editar (submenu) + Remover + Limpar dados."""
     menu = QMenu(parent)
-    edit = menu.addMenu("Editar")
-    edit.addAction("Editar nome", lambda: edit_name(app, game))
-    edit.addAction("Editar plataforma", lambda: edit_platform(app, game))
-    edit.addAction("Editar descrição", lambda: edit_description(app, game))
-    edit.addAction("Editar avaliação", lambda: edit_rating(app, game))
+    add_edit_actions(menu.addMenu("Editar"), app, game)
     menu.addSeparator()
+    menu.addAction("Remover", lambda: remove_game(app, game))
     menu.addAction("Limpar dados", lambda: clear_game(app, game))
     return menu
+
+
+def add_edit_actions(menu, app, game) -> None:
+    """Preenche um menu com as ações de edição (reusado na tela do jogo)."""
+    menu.addAction("Editar nome", lambda: edit_name(app, game))
+    menu.addAction("Editar plataforma", lambda: edit_platform(app, game))
+    menu.addAction("Editar capa", lambda: edit_cover(app, game))
+    menu.addAction("Restaurar capa padrão", lambda: reset_cover(app, game))
+    menu.addAction("Editar descrição", lambda: edit_description(app, game))
+    menu.addAction("Editar avaliação", lambda: edit_rating(app, game))
+    menu.addSeparator()
+    menu.addAction("Remover", lambda: remove_game(app, game))
 
 
 class SessionEditDialog(QDialog):

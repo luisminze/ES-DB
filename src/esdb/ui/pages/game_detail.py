@@ -11,8 +11,9 @@ from ...domain.calculations import format_duration
 from ...domain.models import Game
 from ..widgets import cover_fit_label, cover_label, section_title, stat_tile
 from .base import clear_layout
-from .game_edit import (SessionEditDialog, edit_description, edit_name,
-                        edit_platform, edit_rating)
+from .game_edit import (SessionEditDialog, edit_cover, edit_description,
+                        edit_name, edit_platform, edit_rating, remove_game,
+                        reset_cover)
 
 
 class GameDetailDialog(QDialog):
@@ -99,14 +100,29 @@ class GameDetailDialog(QDialog):
             tiles.addWidget(stat_tile(v, lab, acc), 0, i)
         self._root.addLayout(tiles)
 
-        self._root.addWidget(section_title(
-            "Histórico de sessões  (duplo-clique para editar início/fim)"))
+        shead = QHBoxLayout()
+        shead.addWidget(section_title("Histórico de sessões"))
+        hint = QLabel("duplo-clique: editar · botão direito: apagar")
+        hint.setObjectName("CardMeta")
+        shead.addWidget(hint)
+        shead.addStretch()
+        recalc = QPushButton("Recalcular tempos")
+        recalc.setObjectName("ChromeBtn")
+        recalc.setToolTip("Recalcula a duração de todas as sessões pelos horários "
+                          "e sincroniza o tempo total")
+        recalc.clicked.connect(self._recalc)
+        shead.addWidget(recalc)
+        self._root.addLayout(shead)
+
         self._sessions = sessions
         table = QTableWidget(len(sessions), 3)
         table.setHorizontalHeaderLabels(["Início", "Fim", "Duração"])
         table.verticalHeader().setVisible(False)
         table.setEditTriggers(QTableWidget.NoEditTriggers)
         table.setSelectionBehavior(QTableWidget.SelectRows)
+        table.setContextMenuPolicy(Qt.CustomContextMenu)
+        table.customContextMenuRequested.connect(
+            lambda pos, t=table: self._session_menu(t, pos))
         table.horizontalHeader().setStretchLastSection(True)
         table.setColumnWidth(0, 300)
         table.setColumnWidth(1, 300)
@@ -136,16 +152,25 @@ class GameDetailDialog(QDialog):
     def _edit_menu(self) -> None:
         from PySide6.QtGui import QCursor
         from PySide6.QtWidgets import QMenu
+        g = self._game
         menu = QMenu(self)
-        menu.addAction("Editar nome",
-                       lambda: self._after(edit_name(self._app, self._game)))
+        menu.addAction("Editar nome", lambda: self._after(edit_name(self._app, g)))
         menu.addAction("Editar plataforma",
-                       lambda: self._after(edit_platform(self._app, self._game)))
+                       lambda: self._after(edit_platform(self._app, g)))
+        menu.addAction("Editar capa", lambda: self._after(edit_cover(self._app, g)))
+        menu.addAction("Restaurar capa padrão",
+                       lambda: self._after(reset_cover(self._app, g)))
         menu.addAction("Editar descrição",
-                       lambda: self._after(edit_description(self._app, self._game)))
+                       lambda: self._after(edit_description(self._app, g)))
         menu.addAction("Editar avaliação",
-                       lambda: self._after(edit_rating(self._app, self._game)))
+                       lambda: self._after(edit_rating(self._app, g)))
+        menu.addSeparator()
+        menu.addAction("Remover jogo", self._remove_from_menu)
         menu.exec(QCursor.pos())
+
+    def _remove_from_menu(self) -> None:
+        if remove_game(self._app, self._game):
+            self.accept()
 
     def _after(self, changed: bool) -> None:
         if changed:
@@ -155,6 +180,35 @@ class GameDetailDialog(QDialog):
         if 0 <= row < len(self._sessions):
             if SessionEditDialog(self._app, self._sessions[row]).exec():
                 self._rebuild()
+
+    def _session_menu(self, table, pos) -> None:
+        from PySide6.QtWidgets import QMenu
+        row = table.rowAt(pos.y())
+        if not (0 <= row < len(self._sessions)):
+            return
+        session = self._sessions[row]
+        menu = QMenu(self)
+        menu.addAction("Editar início/fim", lambda: self._edit_session(row, 0))
+        menu.addAction("Apagar sessão", lambda: self._delete_session(session))
+        menu.exec(table.viewport().mapToGlobal(pos))
+
+    def _delete_session(self, session) -> None:
+        resp = QMessageBox.warning(
+            self, "Apagar sessão",
+            "Apagar PERMANENTEMENTE esta sessão?\n\n"
+            f"{session.started_at.astimezone(self._app.tz).strftime('%d/%m/%Y %H:%M')}"
+            f" — {format_duration(session.duration_seconds)}",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if resp != QMessageBox.Yes:
+            return
+        self._app.library.delete_session(session.external_id)
+        self._app.refresh_pages()
+        self._rebuild()
+
+    def _recalc(self) -> None:
+        self._app.library.recalc_sessions(self._game.external_id)
+        self._app.refresh_pages()
+        self._rebuild()
 
     def _remove(self) -> None:
         resp = QMessageBox.question(

@@ -79,3 +79,21 @@ def test_heroic_wrapper_records(tmp_path):
     row = conn.execute("SELECT name, platform, system FROM games").fetchone()
     conn.close()
     assert row == ("Jogo X", "PC (Windows)", "heroic:store=windows")
+
+
+def test_delete_and_recalc_session(tmp_path):
+    from esdb.esde.writer import delete_session_row, recalc_sessions
+    db = create_database(tmp_path / "s.db")
+    conn = sqlite3.connect(str(db))
+    conn.execute("INSERT INTO games(id,name,platform) VALUES(1,'J','PC (Windows)')")
+    # duração gravada 'errada' (10) mas horários indicam 1800s
+    conn.execute("INSERT INTO sessions(id,game_id,start_time,end_time,duration) "
+                 "VALUES(5,1,'2026-01-01T10:00:00+00:00','2026-01-01T10:30:00+00:00',10),"
+                 "(6,1,'2026-01-02T10:00:00+00:00','2026-01-02T10:10:00+00:00',600)")
+    conn.commit(); conn.close()
+    assert recalc_sessions(db, 1) == 1800 + 600  # sincroniza pelos horários
+    assert delete_session_row(db, 6) is True
+    conn = sqlite3.connect(str(db))
+    assert conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
+    assert conn.execute("SELECT duration FROM sessions WHERE id=5").fetchone()[0] == 1800
+    conn.close()
